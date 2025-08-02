@@ -6,10 +6,12 @@ from typing import Dict, List
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from .game import Game
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # In-memory store of games and connections
 class ConnectionManager:
