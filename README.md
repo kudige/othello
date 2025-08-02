@@ -11,7 +11,7 @@ pip install -r requirements.txt
 ## Running the server
 
 ```bash
-uvicorn backend.server:app --reload
+uvicorn backend.server:app --host 0.0.0.0 --reload
 ```
 
 Open the browser at `http://localhost:8000` and enter the same game ID in two different windows to play against another player.
