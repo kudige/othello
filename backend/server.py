@@ -50,9 +50,25 @@ manager = ConnectionManager()
 
 
 @app.get("/")
-async def get_index() -> HTMLResponse:
+async def get_lobby() -> HTMLResponse:
     with open("static/index.html", "r", encoding="utf-8") as f:
         return HTMLResponse(f.read())
+
+
+@app.get("/game/{game_id}")
+async def get_game(game_id: str) -> HTMLResponse:
+    with open("static/game.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read())
+
+
+@app.get("/rooms")
+async def list_rooms() -> dict:
+    return {
+        "rooms": [
+            {"id": gid, "players": players}
+            for gid, players in manager.names.items()
+        ]
+    }
 
 
 @app.websocket("/ws/{game_id}")

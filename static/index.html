@@ -2,17 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Othello Online</title>
+    <title>Othello Lobby</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <h1>Othello Online</h1>
-    <div id="players">
-        <div id="black-player" class="player">Black (<span id="black-count">0</span>): <span id="black-name"></span></div>
-        <div id="white-player" class="player">White (<span id="white-count">0</span>): <span id="white-name"></span></div>
-    </div>
-    <div id="board"></div>
-    <div id="message"></div>
-    <script src="/static/script.js"></script>
+    <h1>Othello Lobby</h1>
+    <div id="welcome"></div>
+    <ul id="rooms"></ul>
+    <button id="create-room">Create New Room</button>
+    <script src="/static/lobby.js"></script>
 </body>
 </html>
