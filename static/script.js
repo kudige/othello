@@ -1,10 +1,18 @@
 let socket;
 let playerColor = null;
-let playerName = null;
+let playerName = localStorage.getItem('playerName');
+const gameId = window.location.pathname.split('/').pop();
 
 function connect() {
-    const gameId = prompt("Enter game ID");
-    playerName = prompt("Enter your name");
+    if (!gameId) {
+        return;
+    }
+    if (!playerName) {
+        playerName = prompt('Enter your name');
+        if (playerName) {
+            localStorage.setItem('playerName', playerName);
+        }
+    }
     const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + `/ws/${gameId}`;
     socket = new WebSocket(wsUrl);
     socket.onmessage = (event) => {
