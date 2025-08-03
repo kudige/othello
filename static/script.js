@@ -35,6 +35,8 @@ function renderBoard(board, current) {
     if (turnColor) {
         validMoves(board, current).forEach(([vx, vy]) => valid.add(`${vx},${vy}`));
     }
+    let blackCount = 0;
+    let whiteCount = 0;
     board.forEach((row, x) => {
         row.forEach((cell, y) => {
             const cellDiv = document.createElement('div');
@@ -52,10 +54,29 @@ function renderBoard(board, current) {
                 const disc = document.createElement('div');
                 disc.className = 'disc ' + (cell === 1 ? 'black' : 'white');
                 cellDiv.appendChild(disc);
+                if (cell === 1) {
+                    blackCount++;
+                } else if (cell === -1) {
+                    whiteCount++;
+                }
             }
             boardDiv.appendChild(cellDiv);
         });
     });
+    document.getElementById('black-count').textContent = blackCount;
+    document.getElementById('white-count').textContent = whiteCount;
+    const messageDiv = document.getElementById('message');
+    if (current === 0) {
+        if (blackCount > whiteCount) {
+            messageDiv.textContent = 'Game over! Black wins.';
+        } else if (whiteCount > blackCount) {
+            messageDiv.textContent = 'Game over! White wins.';
+        } else {
+            messageDiv.textContent = "Game over! It's a draw.";
+        }
+    } else {
+        messageDiv.textContent = '';
+    }
 }
 
 function renderPlayers(players, current) {
