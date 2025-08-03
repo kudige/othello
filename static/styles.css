@@ -6,6 +6,22 @@ body {
     text-align: center;
 }
 
+#players {
+    margin-top: 10px;
+}
+
+.player {
+    display: inline-block;
+    margin: 0 10px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    background-color: rgba(0,0,0,0.2);
+}
+
+.player.active {
+    border: 2px solid #fff;
+}
+
 #board {
     margin: 20px auto;
     width: 400px;
@@ -23,8 +39,13 @@ body {
     position: relative;
 }
 
-.cell:hover {
+.cell.valid {
     background-color: rgba(255,255,255,0.1);
+    cursor: pointer;
+}
+
+.cell.valid:hover {
+    background-color: rgba(255,255,255,0.2);
 }
 
 .disc {
