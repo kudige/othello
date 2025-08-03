@@ -80,10 +80,25 @@ function renderBoard(board, current) {
 }
 
 function renderPlayers(players, current) {
-    document.getElementById('black-name').textContent = players.black || 'Waiting...';
-    document.getElementById('white-name').textContent = players.white || 'Waiting...';
-    document.getElementById('black-player').classList.toggle('active', current === 1);
-    document.getElementById('white-player').classList.toggle('active', current === -1);
+    const blackPlayer = document.getElementById('black-player');
+    const whitePlayer = document.getElementById('white-player');
+    const blackName = document.getElementById('black-name');
+    const whiteName = document.getElementById('white-name');
+
+    blackName.textContent = players.black || 'Waiting...';
+    whiteName.textContent = players.white || 'Waiting...';
+
+    if (playerColor === 'black' && players.black) {
+        blackName.textContent += ' (You)';
+    } else if (playerColor === 'white' && players.white) {
+        whiteName.textContent += ' (You)';
+    }
+
+    blackPlayer.classList.toggle('active', current === 1);
+    whitePlayer.classList.toggle('active', current === -1);
+
+    blackPlayer.classList.toggle('you', playerColor === 'black');
+    whitePlayer.classList.toggle('you', playerColor === 'white');
 }
 
 function validMoves(board, player) {

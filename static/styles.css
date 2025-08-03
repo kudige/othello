@@ -22,6 +22,11 @@ body {
     border: 2px solid #fff;
 }
 
+.player.you {
+    background-color: rgba(255, 255, 0, 0.3);
+    font-weight: bold;
+}
+
 #message {
     margin-top: 10px;
     font-size: 1.2em;
