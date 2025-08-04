@@ -22,7 +22,7 @@ function connect() {
             playerColor = msg.color;
             renderBoard(msg.board, msg.current);
             renderPlayers(msg.players, msg.current);
-            if (playerName) {
+            if (playerName && playerColor) {
                 socket.send(JSON.stringify({action: 'name', name: playerName}));
             }
         } else if (msg.type === 'update') {
@@ -30,6 +30,11 @@ function connect() {
             renderPlayers(msg.players, msg.current);
         } else if (msg.type === 'players') {
             renderPlayers(msg.players, msg.current);
+        } else if (msg.type === 'seat') {
+            playerColor = msg.color;
+            if (playerName) {
+                socket.send(JSON.stringify({action: 'name', name: playerName}));
+            }
         } else if (msg.type === 'error') {
             alert(msg.message);
         }
@@ -94,14 +99,28 @@ function renderPlayers(players, current) {
     const blackName = document.getElementById('black-name');
     const whiteName = document.getElementById('white-name');
 
-    blackName.textContent = players.black || 'Waiting...';
-    whiteName.textContent = players.white || 'Waiting...';
-
-    if (playerColor === 'black' && players.black) {
-        blackName.textContent += ' (You)';
-    } else if (playerColor === 'white' && players.white) {
-        whiteName.textContent += ' (You)';
+    // Helper to render a seat
+    function renderSeat(color, el, name) {
+        el.innerHTML = '';
+        if (name) {
+            el.textContent = name;
+            if (playerColor === color) {
+                el.textContent += ' (You)';
+            }
+        } else if (!playerColor) {
+            const btn = document.createElement('button');
+            btn.textContent = 'Sit';
+            btn.onclick = () => {
+                socket.send(JSON.stringify({action: 'sit', color: color, name: playerName}));
+            };
+            el.appendChild(btn);
+        } else {
+            el.textContent = 'Waiting...';
+        }
     }
+
+    renderSeat('black', blackName, players.black);
+    renderSeat('white', whiteName, players.white);
 
     blackPlayer.classList.toggle('active', current === 1);
     whitePlayer.classList.toggle('active', current === -1);
