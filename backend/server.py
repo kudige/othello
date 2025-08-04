@@ -30,6 +30,8 @@ class ConnectionManager:
         self.room_names: Dict[str, str] = {}
         # Connections that are merely spectating a given game.
         self.watchers: Dict[str, Set[WebSocket]] = {}
+        # Tasks that remove rooms after a period of inactivity
+        self.cleanup_tasks: Dict[str, Optional[asyncio.Task]] = {}
         self._counter = 1
 
     def create_game(self) -> str:
@@ -42,6 +44,7 @@ class ConnectionManager:
         self.release_tasks[game_id] = {"black": None, "white": None}
         self.watchers[game_id] = set()
         self.room_names[game_id] = f"Game {game_id}"
+        self._schedule_room_cleanup(game_id)
         return game_id
 
     async def connect(self, game_id: str, websocket: WebSocket, name: Optional[str] = None) -> Optional[str]:
@@ -78,6 +81,7 @@ class ConnectionManager:
         else:
             # Join as spectator
             self.watchers.setdefault(game_id, set()).add(websocket)
+        self._schedule_room_cleanup(game_id)
         return color
 
     def disconnect(self, game_id: str, websocket: WebSocket) -> None:
@@ -99,6 +103,7 @@ class ConnectionManager:
                 self.release_tasks[game_id][color] = asyncio.create_task(
                     self._release_seat(game_id, color)
                 )
+                self._schedule_room_cleanup(game_id)
 
     async def _release_seat(self, game_id: str, color: str) -> None:
         try:
@@ -148,8 +153,52 @@ class ConnectionManager:
             if task:
                 task.cancel()
                 self.release_tasks[game_id][color] = None
+            self._schedule_room_cleanup(game_id)
             return True
         return False
+
+    def _remove_room(self, game_id: str) -> None:
+        """Remove all traces of a room."""
+        for task in self.release_tasks.get(game_id, {}).values():
+            if task:
+                task.cancel()
+        self.release_tasks.pop(game_id, None)
+        self.watchers.pop(game_id, None)
+        self.active.pop(game_id, None)
+        self.games.pop(game_id, None)
+        self.names.pop(game_id, None)
+        self.room_names.pop(game_id, None)
+
+    def _schedule_room_cleanup(self, game_id: str) -> None:
+        """Schedule removal of a room based on player occupancy."""
+        players = self.active.get(game_id)
+        if players is None:
+            return
+        existing = self.cleanup_tasks.get(game_id)
+        if existing:
+            existing.cancel()
+        if players["black"] is None and players["white"] is None:
+            delay = 5 * 60
+        elif players["black"] is None or players["white"] is None:
+            delay = 30 * 60
+        else:
+            self.cleanup_tasks[game_id] = None
+            return
+        self.cleanup_tasks[game_id] = asyncio.create_task(
+            self._remove_after_delay(game_id, delay)
+        )
+
+    async def _remove_after_delay(self, game_id: str, delay: int) -> None:
+        try:
+            await asyncio.sleep(delay)
+            players = self.active.get(game_id)
+            if not players:
+                return
+            if players["black"] is None or players["white"] is None:
+                # Remove whether missing one or all players
+                self._remove_room(game_id)
+        finally:
+            self.cleanup_tasks.pop(game_id, None)
 
 
 manager = ConnectionManager()
