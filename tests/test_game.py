@@ -11,16 +11,16 @@ from backend.game import Game
 
 def test_initial_valid_moves():
     game = Game()
-    moves = set(game.valid_moves(1))
-    expected = {(2, 3), (3, 2), (4, 5), (5, 4)}
+    moves = set(game.valid_moves(-1))
+    expected = {(2, 4), (3, 5), (4, 2), (5, 3)}
     assert moves == expected
 
 
 def test_move_flips_opponent():
     game = Game()
-    assert game.make_move(2, 3, 1)
-    # The move at (2,3) should flip one white at (3,3)
-    assert game.board[2][3] == 1
-    assert game.board[3][3] == 1
+    assert game.make_move(2, 4, -1)
+    # The move at (2,4) should flip one black at (3,4)
+    assert game.board[2][4] == -1
+    assert game.board[3][4] == -1
     black, white = game.score()
-    assert black == 4 and white == 1
+    assert black == 1 and white == 4

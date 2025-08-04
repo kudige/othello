@@ -2,6 +2,8 @@
 
 Multiplayer browser-based Othello game with a Python backend and WebSocket communication.
 
+**Note:** In this version of the game, the white player moves first.
+
 ## Setup
 
 ```bash
