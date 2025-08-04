@@ -95,6 +95,18 @@ class ConnectionManager:
             if players and players[color] is None:
                 # Seat becomes available to anyone
                 self.names[game_id][color] = ""
+                # Notify remaining players that the seat is open so the UI
+                # updates without requiring a refresh. We include the current
+                # player so the client can keep rendering turn indicators.
+                game = self.games.get(game_id)
+                await self.broadcast(
+                    game_id,
+                    {
+                        "type": "players",
+                        "players": self.names[game_id],
+                        "current": game.current_player if game else 0,
+                    },
+                )
         finally:
             # Clear reference to the completed task
             if game_id in self.release_tasks:
