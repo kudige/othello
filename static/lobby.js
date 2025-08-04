@@ -15,21 +15,25 @@ async function fetchRooms() {
     const list = document.getElementById('rooms');
     list.innerHTML = '';
     data.rooms.forEach(room => {
-        const li = document.createElement('li');
-        const black = room.players.black || '---';
-        const white = room.players.white || '---';
-        li.textContent = `${room.id} (Black: ${black}, White: ${white})`;
-        li.onclick = () => {
+        const div = document.createElement('div');
+        div.className = 'room';
+        const players = [];
+        if (room.players.white) players.push(room.players.white);
+        if (room.players.black) players.push(room.players.black);
+        const names = players.length ? players.join(', ') : '---';
+        div.textContent = `${room.name} (${names})`;
+        div.onclick = () => {
             window.location.href = `/game/${room.id}`;
         };
-        list.appendChild(li);
+        list.appendChild(div);
     });
 }
 
 setInterval(fetchRooms, 2000);
 fetchRooms();
 
-document.getElementById('create-room').onclick = () => {
-    const newId = Math.random().toString(36).substring(2, 8);
-    window.location.href = `/game/${newId}`;
+document.getElementById('create-room').onclick = async () => {
+    const res = await fetch('/create');
+    const room = await res.json();
+    window.location.href = `/game/${room.id}`;
 };

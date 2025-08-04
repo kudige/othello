@@ -13,7 +13,8 @@ function connect() {
             localStorage.setItem('playerName', playerName);
         }
     }
-    const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + `/ws/${gameId}`;
+    const nameParam = playerName ? `?name=${encodeURIComponent(playerName)}` : '';
+    const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + `/ws/${gameId}${nameParam}`;
     socket = new WebSocket(wsUrl);
     socket.onmessage = (event) => {
         const msg = JSON.parse(event.data);
