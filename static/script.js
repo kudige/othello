@@ -1,6 +1,14 @@
 let socket;
 let playerColor = null;
 let playerName = localStorage.getItem('playerName');
+// Track the latest board state and whose turn it is so we can re-render
+// the board if the user takes a seat after initially joining as a
+// spectator. Without storing this information, the board would still be
+// rendered for a spectator and the newly seated player would be unable to
+// make a move until a full page refresh.
+let currentBoard = null;
+let currentTurn = 0;
+let currentPlayers = null;
 const gameId = window.location.pathname.split('/').pop();
 
 function connect() {
@@ -20,20 +28,36 @@ function connect() {
         const msg = JSON.parse(event.data);
         if (msg.type === 'init') {
             playerColor = msg.color;
-            renderBoard(msg.board, msg.current);
-            renderPlayers(msg.players, msg.current);
+            currentBoard = msg.board;
+            currentTurn = msg.current;
+            currentPlayers = msg.players;
+            renderBoard(currentBoard, currentTurn);
+            renderPlayers(currentPlayers, currentTurn);
             if (playerName && playerColor) {
                 socket.send(JSON.stringify({action: 'name', name: playerName}));
             }
         } else if (msg.type === 'update') {
-            renderBoard(msg.board, msg.current);
-            renderPlayers(msg.players, msg.current);
+            currentBoard = msg.board;
+            currentTurn = msg.current;
+            currentPlayers = msg.players;
+            renderBoard(currentBoard, currentTurn);
+            renderPlayers(currentPlayers, currentTurn);
         } else if (msg.type === 'players') {
-            renderPlayers(msg.players, msg.current);
+            currentPlayers = msg.players;
+            currentTurn = msg.current;
+            renderPlayers(currentPlayers, currentTurn);
         } else if (msg.type === 'seat') {
             playerColor = msg.color;
             if (playerName) {
                 socket.send(JSON.stringify({action: 'name', name: playerName}));
+            }
+            // Re-render the board and player list so the newly seated player
+            // can immediately interact with the game without refreshing.
+            if (currentBoard) {
+                renderBoard(currentBoard, currentTurn);
+            }
+            if (currentPlayers) {
+                renderPlayers(currentPlayers, currentTurn);
             }
         } else if (msg.type === 'error') {
             alert(msg.message);
