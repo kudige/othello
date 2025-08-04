@@ -33,7 +33,7 @@ setInterval(fetchRooms, 2000);
 fetchRooms();
 
 document.getElementById('create-room').onclick = async () => {
-    const res = await fetch('/create');
+    const res = await fetch('/create', {method: 'POST'});
     const room = await res.json();
     window.location.href = `/game/${room.id}`;
 };

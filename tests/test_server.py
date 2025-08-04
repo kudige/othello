@@ -1,8 +1,9 @@
 import asyncio
 import pytest
 from fastapi import WebSocketDisconnect
+from fastapi.testclient import TestClient
 
-from backend.server import ConnectionManager
+from backend.server import ConnectionManager, app
 
 
 class DummyWebSocket:
@@ -52,6 +53,20 @@ def test_seat_reserved_and_released(monkeypatch):
         assert manager.claim_seat(gid, ws3, "black", "carol")
 
     asyncio.run(run_test())
+
+
+def test_create_room_endpoint_rejects_get_and_returns_unique_ids():
+    client = TestClient(app)
+
+    first = client.post("/create")
+    second = client.post("/create")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["id"] != second.json()["id"]
+
+    disallowed = client.get("/create")
+    assert disallowed.status_code == 405
 
 
 def test_release_notifies_clients(monkeypatch):
