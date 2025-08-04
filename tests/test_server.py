@@ -51,3 +51,40 @@ def test_seat_reserved_and_released(monkeypatch):
         assert color2 == color
 
     asyncio.run(run_test())
+
+
+def test_release_notifies_clients(monkeypatch):
+    async def run_test():
+        manager = ConnectionManager()
+        gid = manager.create_game()
+
+        ws = DummyWebSocket()
+        color = await manager.connect(gid, ws, name="alice")
+        manager.names[gid][color] = "alice"
+
+        # Capture broadcast messages
+        messages = []
+
+        async def fake_broadcast(game_id, message):
+            messages.append((game_id, message))
+
+        monkeypatch.setattr(manager, "broadcast", fake_broadcast)
+
+        # Speed up the release task by replacing asyncio.sleep
+        real_sleep = asyncio.sleep
+
+        async def fast_sleep(_):
+            await real_sleep(0)
+
+        monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+
+        manager.disconnect(gid, ws)
+
+        # Wait for the release task to complete
+        await manager.release_tasks[gid][color]
+
+        assert manager.names[gid][color] == ""
+        assert messages and messages[0][1]["type"] == "players"
+        assert messages[0][1]["players"][color] == ""
+
+    asyncio.run(run_test())
