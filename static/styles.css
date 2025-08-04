@@ -82,7 +82,7 @@ body {
     margin: 20px auto;
     width: 400px;
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 4px;
     background-color: #0a3d2e;
     box-shadow: 0 0 10px #000 inset;

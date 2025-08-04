@@ -17,9 +17,11 @@ async function fetchRooms() {
     data.rooms.forEach(room => {
         const div = document.createElement('div');
         div.className = 'room';
-        const black = room.players.black || '---';
-        const white = room.players.white || '---';
-        div.textContent = `${room.name} (Black: ${black}, White: ${white})`;
+        const players = [];
+        if (room.players.white) players.push(room.players.white);
+        if (room.players.black) players.push(room.players.black);
+        const names = players.length ? players.join(', ') : '---';
+        div.textContent = `${room.name} (${names})`;
         div.onclick = () => {
             window.location.href = `/game/${room.id}`;
         };
