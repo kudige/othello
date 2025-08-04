@@ -76,3 +76,43 @@ body {
 .disc.white {
     background: radial-gradient(circle at 30% 30%, #fff, #ccc);
 }
+
+/* Lobby styling */
+#rooms {
+    margin: 20px auto;
+    width: 400px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+    background-color: #0a3d2e;
+    box-shadow: 0 0 10px #000 inset;
+    border: 8px solid #654321;
+    padding: 0;
+}
+
+#rooms .room {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(0,0,0,0.3);
+    cursor: pointer;
+    padding: 10px;
+}
+
+#rooms .room:hover {
+    background-color: rgba(255,255,255,0.2);
+}
+
+#create-room {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #654321;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#create-room:hover {
+    background-color: #805a2c;
+}

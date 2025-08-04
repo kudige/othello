@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Dict, List
+from typing import Dict, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
@@ -13,37 +13,68 @@ from .game import Game
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
 # In-memory store of games and connections
 class ConnectionManager:
     def __init__(self) -> None:
-        self.active: Dict[str, List[WebSocket]] = {}
+        # Active connections per game keyed by color.
+        self.active: Dict[str, Dict[str, Optional[WebSocket]]] = {}
         self.games: Dict[str, Game] = {}
         # Track player names per game. Keys are game ids and values are
         # dictionaries mapping color ("black"/"white") to the player's name.
         self.names: Dict[str, Dict[str, str]] = {}
+        # Human friendly room names
+        self.room_names: Dict[str, str] = {}
+        self._counter = 1
 
-    async def connect(self, game_id: str, websocket: WebSocket) -> str:
+    def create_game(self) -> str:
+        """Create a new empty game and return its id."""
+        game_id = str(self._counter)
+        self._counter += 1
+        self.active[game_id] = {"black": None, "white": None}
+        self.games[game_id] = Game()
+        self.names[game_id] = {"black": "", "white": ""}
+        self.room_names[game_id] = f"Game {game_id}"
+        return game_id
+
+    async def connect(self, game_id: str, websocket: WebSocket, name: Optional[str] = None) -> str:
         await websocket.accept()
         if game_id not in self.active:
-            self.active[game_id] = []
+            # Auto-create if missing (e.g., manual room creation)
+            self.active[game_id] = {"black": None, "white": None}
             self.games[game_id] = Game()
             self.names[game_id] = {"black": "", "white": ""}
+            self.room_names.setdefault(game_id, f"Game {game_id}")
         players = self.active[game_id]
-        players.append(websocket)
-        return "black" if len(players) == 1 else "white"
+        names = self.names[game_id]
+        # Try to assign color based on stored name first
+        if name and names.get("black") == name:
+            color = "black"
+        elif name and names.get("white") == name:
+            color = "white"
+        elif players["black"] is None:
+            color = "black"
+        elif players["white"] is None:
+            color = "white"
+        else:
+            # Both spots taken
+            await websocket.close()
+            raise WebSocketDisconnect()
+        players[color] = websocket
+        return color
 
     def disconnect(self, game_id: str, websocket: WebSocket) -> None:
         players = self.active.get(game_id)
-        if players and websocket in players:
-            players.remove(websocket)
         if not players:
-            self.active.pop(game_id, None)
-            self.games.pop(game_id, None)
-            self.names.pop(game_id, None)
+            return
+        for color, ws in players.items():
+            if ws is websocket:
+                players[color] = None
 
     async def broadcast(self, game_id: str, message: dict) -> None:
-        for connection in self.active.get(game_id, []):
-            await connection.send_text(json.dumps(message))
+        for connection in self.active.get(game_id, {}).values():
+            if connection:
+                await connection.send_text(json.dumps(message))
 
 
 manager = ConnectionManager()
@@ -65,15 +96,22 @@ async def get_game(game_id: str) -> HTMLResponse:
 async def list_rooms() -> dict:
     return {
         "rooms": [
-            {"id": gid, "players": players}
-            for gid, players in manager.names.items()
+            {"id": gid, "name": manager.room_names.get(gid, gid), "players": manager.names[gid]}
+            for gid in manager.games.keys()
         ]
     }
 
 
+@app.get("/create")
+async def create_room() -> dict:
+    gid = manager.create_game()
+    return {"id": gid, "name": manager.room_names[gid]}
+
+
 @app.websocket("/ws/{game_id}")
 async def websocket_endpoint(websocket: WebSocket, game_id: str):
-    color = await manager.connect(game_id, websocket)
+    name = websocket.query_params.get("name")
+    color = await manager.connect(game_id, websocket, name)
     game = manager.games[game_id]
     await websocket.send_text(
         json.dumps(
