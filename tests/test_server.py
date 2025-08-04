@@ -71,6 +71,9 @@ def test_create_room_endpoint_rejects_get_and_returns_unique_ids():
 
 def test_release_notifies_clients(monkeypatch):
     async def run_test():
+        monkeypatch.setattr(
+            ConnectionManager, "_schedule_room_cleanup", lambda self, game_id: None
+        )
         manager = ConnectionManager()
         gid = manager.create_game()
 
@@ -102,5 +105,65 @@ def test_release_notifies_clients(monkeypatch):
         assert manager.names[gid]["black"] == ""
         assert messages and messages[0][1]["type"] == "players"
         assert messages[0][1]["players"]["black"] == ""
+
+    asyncio.run(run_test())
+
+
+def test_room_removed_when_missing_player(monkeypatch):
+    async def run_test():
+        manager = ConnectionManager()
+        gid = manager.create_game()
+
+        ws1 = DummyWebSocket()
+        await manager.connect(gid, ws1, name="alice")
+        assert manager.claim_seat(gid, ws1, "black", "alice")
+
+        ws2 = DummyWebSocket()
+        await manager.connect(gid, ws2, name="bob")
+        assert manager.claim_seat(gid, ws2, "white", "bob")
+
+        async def noop_broadcast(game_id, message):
+            pass
+
+        monkeypatch.setattr(manager, "broadcast", noop_broadcast)
+
+        real_sleep = asyncio.sleep
+
+        async def fast_sleep(_):
+            await real_sleep(0)
+
+        monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+
+        manager.disconnect(gid, ws1)
+
+        task = manager.cleanup_tasks[gid]
+        await task
+
+        assert gid not in manager.games
+
+    asyncio.run(run_test())
+
+
+def test_room_removed_when_empty(monkeypatch):
+    async def run_test():
+        manager = ConnectionManager()
+        gid = manager.create_game()
+
+        async def noop_broadcast(game_id, message):
+            pass
+
+        monkeypatch.setattr(manager, "broadcast", noop_broadcast)
+
+        real_sleep = asyncio.sleep
+
+        async def fast_sleep(_):
+            await real_sleep(0)
+
+        monkeypatch.setattr(asyncio, "sleep", fast_sleep)
+
+        task = manager.cleanup_tasks[gid]
+        await task
+
+        assert gid not in manager.games
 
     asyncio.run(run_test())
