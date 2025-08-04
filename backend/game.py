@@ -18,7 +18,7 @@ class Game:
         self.board[mid][mid] = -1
         self.board[mid - 1][mid] = 1
         self.board[mid][mid - 1] = 1
-        self.current_player = 1  # black starts
+        self.current_player = -1  # white starts
 
     def inside(self, x: int, y: int) -> bool:
         return 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE
