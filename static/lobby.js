@@ -18,7 +18,7 @@ async function fetchRooms() {
         const li = document.createElement('li');
         const black = room.players.black || '---';
         const white = room.players.white || '---';
-        li.textContent = `${room.id} (Black: ${black}, White: ${white})`;
+        li.textContent = `${room.name} (Black: ${black}, White: ${white})`;
         li.onclick = () => {
             window.location.href = `/game/${room.id}`;
         };
@@ -29,7 +29,8 @@ async function fetchRooms() {
 setInterval(fetchRooms, 2000);
 fetchRooms();
 
-document.getElementById('create-room').onclick = () => {
-    const newId = Math.random().toString(36).substring(2, 8);
-    window.location.href = `/game/${newId}`;
+document.getElementById('create-room').onclick = async () => {
+    const res = await fetch('/create', {method: 'POST'});
+    const data = await res.json();
+    window.location.href = `/game/${data.id}`;
 };

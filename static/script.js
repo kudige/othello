@@ -1,7 +1,7 @@
 let socket;
-let playerColor = null;
 let playerName = localStorage.getItem('playerName');
 const gameId = window.location.pathname.split('/').pop();
+let playerColor = localStorage.getItem(`color_${gameId}`);
 
 function connect() {
     if (!gameId) {
@@ -13,15 +13,19 @@ function connect() {
             localStorage.setItem('playerName', playerName);
         }
     }
-    const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + `/ws/${gameId}`;
+    const colorParam = playerColor ? `?color=${playerColor}` : '';
+    const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + `/ws/${gameId}${colorParam}`;
     socket = new WebSocket(wsUrl);
     socket.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         if (msg.type === 'init') {
             playerColor = msg.color;
+            if (playerColor === 'black' || playerColor === 'white') {
+                localStorage.setItem(`color_${gameId}`, playerColor);
+            }
             renderBoard(msg.board, msg.current);
             renderPlayers(msg.players, msg.current);
-            if (playerName) {
+            if (playerName && (playerColor === 'black' || playerColor === 'white')) {
                 socket.send(JSON.stringify({action: 'name', name: playerName}));
             }
         } else if (msg.type === 'update') {
@@ -146,7 +150,7 @@ function captures(board, x, y, player) {
 }
 
 function sendMove(x, y) {
-    if (socket && playerColor) {
+    if (socket && (playerColor === 'black' || playerColor === 'white')) {
         socket.send(JSON.stringify({action: 'move', x: x, y: y, color: playerColor}));
     }
 }
