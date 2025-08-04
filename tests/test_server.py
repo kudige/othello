@@ -31,24 +31,25 @@ def test_seat_reserved_and_released(monkeypatch):
         monkeypatch.setattr(manager, "_release_seat", fake_release)
 
         ws1 = DummyWebSocket()
-        color = await manager.connect(gid, ws1, name="alice")
-        manager.names[gid][color] = "alice"
+        await manager.connect(gid, ws1, name="alice")
+        assert manager.claim_seat(gid, ws1, "black", "alice")
         manager.disconnect(gid, ws1)
 
         # Another player connects while seat is reserved.
         ws2 = DummyWebSocket()
-        color_bob = await manager.connect(gid, ws2, name="bob")
-        assert color_bob != color
+        await manager.connect(gid, ws2, name="bob")
+        assert not manager.claim_seat(gid, ws2, "black", "bob")
+        assert manager.claim_seat(gid, ws2, "white", "bob")
         # Reserved seat is still empty and retains original name.
-        assert manager.active[gid][color] is None
-        assert manager.names[gid][color] == "alice"
+        assert manager.active[gid]["black"] is None
+        assert manager.names[gid]["black"] == "alice"
 
         # After releasing the seat, a new player may take it
         release_event.set()
         await asyncio.sleep(0)
         ws3 = DummyWebSocket()
-        color2 = await manager.connect(gid, ws3, name="carol")
-        assert color2 == color
+        await manager.connect(gid, ws3, name="carol")
+        assert manager.claim_seat(gid, ws3, "black", "carol")
 
     asyncio.run(run_test())
 
@@ -59,8 +60,8 @@ def test_release_notifies_clients(monkeypatch):
         gid = manager.create_game()
 
         ws = DummyWebSocket()
-        color = await manager.connect(gid, ws, name="alice")
-        manager.names[gid][color] = "alice"
+        await manager.connect(gid, ws, name="alice")
+        assert manager.claim_seat(gid, ws, "black", "alice")
 
         # Capture broadcast messages
         messages = []
@@ -81,10 +82,10 @@ def test_release_notifies_clients(monkeypatch):
         manager.disconnect(gid, ws)
 
         # Wait for the release task to complete
-        await manager.release_tasks[gid][color]
+        await manager.release_tasks[gid]["black"]
 
-        assert manager.names[gid][color] == ""
+        assert manager.names[gid]["black"] == ""
         assert messages and messages[0][1]["type"] == "players"
-        assert messages[0][1]["players"][color] == ""
+        assert messages[0][1]["players"]["black"] == ""
 
     asyncio.run(run_test())
