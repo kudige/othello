@@ -177,7 +177,7 @@ async def list_rooms() -> dict:
     }
 
 
-@app.get("/create")
+@app.post("/create")
 async def create_room() -> dict:
     gid = manager.create_game()
     return {"id": gid, "name": manager.room_names[gid]}
