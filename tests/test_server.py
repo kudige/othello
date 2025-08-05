@@ -192,6 +192,8 @@ def test_bot_moves(monkeypatch):
         assert game.board[2][4] == -1
         assert game.current_player == 1
         assert messages and messages[0]["type"] == "update"
+        # Broadcast message should include the last move location
+        assert messages[0]["last"] == (2, 4)
 
     asyncio.run(run_test())
 
@@ -273,7 +275,9 @@ def test_restart_game_resets_board(monkeypatch):
     game = manager.games[gid]
     game.board[0][0] = 1
     game.current_player = 0
+    game.last_move = (0, 0)
     assert manager.restart_game(gid)
     new_game = manager.games[gid]
     assert new_game.current_player == -1
     assert new_game.board == Game().board
+    assert new_game.last_move is None

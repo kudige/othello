@@ -24,3 +24,10 @@ def test_move_flips_opponent():
     assert game.board[3][4] == -1
     black, white = game.score()
     assert black == 1 and white == 4
+
+
+def test_last_move_tracking():
+    game = Game()
+    assert game.last_move is None
+    assert game.make_move(2, 4, -1)
+    assert game.last_move == (2, 4)

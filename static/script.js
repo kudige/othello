@@ -12,6 +12,8 @@ let currentPlayers = null;
 let currentRatings = null;
 const gameId = window.location.pathname.split('/').pop();
 let availableBots = [];
+// Track the last move sent by the server so we can highlight it.
+let lastMove = null;
 
 function connect() {
     if (!gameId) {
@@ -34,8 +36,9 @@ function connect() {
             currentTurn = msg.current;
             currentPlayers = msg.players;
             currentRatings = msg.ratings;
+            lastMove = msg.last;
             availableBots = msg.bots || [];
-            renderBoard(currentBoard, currentTurn);
+            renderBoard(currentBoard, currentTurn, lastMove);
             renderPlayers(currentPlayers, currentTurn);
             if (playerName && playerColor) {
                 socket.send(JSON.stringify({action: 'name', name: playerName}));
@@ -45,7 +48,8 @@ function connect() {
             currentTurn = msg.current;
             currentPlayers = msg.players;
             currentRatings = msg.ratings;
-            renderBoard(currentBoard, currentTurn);
+            lastMove = msg.last;
+            renderBoard(currentBoard, currentTurn, lastMove);
             renderPlayers(currentPlayers, currentTurn);
         } else if (msg.type === 'players') {
             currentPlayers = msg.players;
@@ -60,7 +64,7 @@ function connect() {
             // Re-render the board and player list so the newly seated player
             // can immediately interact with the game without refreshing.
             if (currentBoard) {
-                renderBoard(currentBoard, currentTurn);
+                renderBoard(currentBoard, currentTurn, lastMove);
             }
             if (currentPlayers) {
                 renderPlayers(currentPlayers, currentTurn);
@@ -71,7 +75,7 @@ function connect() {
     };
 }
 
-function renderBoard(board, current) {
+function renderBoard(board, current, last) {
     const boardDiv = document.getElementById('board');
     boardDiv.innerHTML = '';
     const turnColor = current === 1 ? 'black' : current === -1 ? 'white' : null;
@@ -97,6 +101,9 @@ function renderBoard(board, current) {
             if (cell !== 0) {
                 const disc = document.createElement('div');
                 disc.className = 'disc ' + (cell === 1 ? 'black' : 'white');
+                if (last && last[0] === x && last[1] === y) {
+                    disc.classList.add('last');
+                }
                 cellDiv.appendChild(disc);
                 if (cell === 1) {
                     blackCount++;

@@ -19,6 +19,9 @@ class Game:
         self.board[mid - 1][mid] = 1
         self.board[mid][mid - 1] = 1
         self.current_player = -1  # white starts
+        # Track the coordinates of the most recent move. ``None`` means no
+        # moves have been played yet.
+        self.last_move: Optional[Tuple[int, int]] = None
 
     def inside(self, x: int, y: int) -> bool:
         return 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE
@@ -63,6 +66,10 @@ class Game:
         if not captured:
             return False
         self.board[x][y] = player
+        # Record the move before flipping captured discs. This information is
+        # surfaced to clients so they can highlight the last move played on the
+        # board.
+        self.last_move = (x, y)
         for cx, cy in captured:
             self.board[cx][cy] = player
         self.current_player = -player
