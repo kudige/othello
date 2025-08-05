@@ -288,6 +288,7 @@ class ConnectionManager:
                 {
                     "type": "update",
                     "board": game.board,
+                    "last": game.last_move,
                     "current": game.current_player,
                     "players": self.names[game_id],
                     "ratings": self.get_game_ratings(game_id),
@@ -399,6 +400,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
             {
                 "type": "init",
                 "board": game.board,
+                "last": game.last_move,
                 "color": color,
                 "current": game.current_player,
                 "players": manager.names[game_id],
@@ -423,6 +425,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                         {
                             "type": "update",
                             "board": game.board,
+                            "last": game.last_move,
                             "current": game.current_player,
                             "players": manager.names[game_id],
                             "ratings": manager.get_game_ratings(game_id),
@@ -492,6 +495,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                         {
                             "type": "update",
                             "board": game.board,
+                            "last": game.last_move,
                             "current": game.current_player,
                             "players": manager.names[game_id],
                             "ratings": manager.get_game_ratings(game_id),
