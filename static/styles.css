@@ -124,3 +124,49 @@ body {
 #create-room:hover {
     background-color: #805a2c;
 }
+
+/* Popup styling for bot selection */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.popup-box {
+    background-color: #0a3d2e;
+    box-shadow: 0 0 10px #000 inset;
+    border: 8px solid #654321;
+    padding: 10px;
+    display: grid;
+    gap: 4px;
+}
+
+.popup-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(0,0,0,0.3);
+    padding: 10px;
+    cursor: pointer;
+}
+
+.popup-item:hover {
+    background-color: rgba(255,255,255,0.2);
+}
+
+.popup-item.cancel {
+    background-color: #654321;
+    color: #fff;
+    border: none;
+}
+
+.popup-item.cancel:hover {
+    background-color: #805a2c;
+}
