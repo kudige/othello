@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from .game import Game
+from .bots import BOTS
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -34,8 +35,8 @@ class ConnectionManager:
         self.cleanup_tasks: Dict[str, Optional[asyncio.Task]] = {}
         # Elo-style ratings for players by name
         self.ratings: Dict[str, int] = {}
-        # Track which seats are occupied by bots
-        self.bots: Dict[str, Dict[str, bool]] = {}
+        # Track which seats are occupied by bots. Values are bot names.
+        self.bots: Dict[str, Dict[str, Optional[str]]] = {}
         self._counter = 1
 
     def create_game(self) -> str:
@@ -45,7 +46,7 @@ class ConnectionManager:
         self.active[game_id] = {"black": None, "white": None}
         self.games[game_id] = Game()
         self.names[game_id] = {"black": "", "white": ""}
-        self.bots[game_id] = {"black": False, "white": False}
+        self.bots[game_id] = {"black": None, "white": None}
         self.release_tasks[game_id] = {"black": None, "white": None}
         self.watchers[game_id] = set()
         self.room_names[game_id] = f"Game {game_id}"
@@ -64,7 +65,7 @@ class ConnectionManager:
             self.active[game_id] = {"black": None, "white": None}
             self.games[game_id] = Game()
             self.names[game_id] = {"black": "", "white": ""}
-            self.bots[game_id] = {"black": False, "white": False}
+            self.bots[game_id] = {"black": None, "white": None}
             self.release_tasks[game_id] = {"black": None, "white": None}
             self.watchers[game_id] = set()
             self.room_names.setdefault(game_id, f"Game {game_id}")
@@ -76,14 +77,14 @@ class ConnectionManager:
             name
             and names.get("black") == name
             and players["black"] is None
-            and not self.bots.get(game_id, {}).get("black")
+            and self.bots.get(game_id, {}).get("black") is None
         ):
             color = "black"
         elif (
             name
             and names.get("white") == name
             and players["white"] is None
-            and not self.bots.get(game_id, {}).get("white")
+            and self.bots.get(game_id, {}).get("white") is None
         ):
             color = "white"
 
@@ -205,7 +206,7 @@ class ConnectionManager:
             return False
         if (
             players[color] is None
-            and not self.bots.get(game_id, {}).get(color)
+            and self.bots.get(game_id, {}).get(color) is None
             and (names[color] in ("", name))
         ):
             players[color] = websocket
@@ -220,16 +221,16 @@ class ConnectionManager:
             return True
         return False
 
-    def add_bot(self, game_id: str, color: str) -> bool:
-        """Seat a bot in the given ``color`` if the seat is empty."""
+    def add_bot(self, game_id: str, color: str, bot_name: str) -> bool:
+        """Seat ``bot_name`` in the given ``color`` if the seat is empty."""
         players = self.active.get(game_id)
         names = self.names.get(game_id)
         bots = self.bots.get(game_id)
-        if not players or not names or not bots:
+        if not players or not names or not bots or bot_name not in BOTS:
             return False
-        if players[color] is None and not bots[color]:
-            names[color] = "Bot"
-            bots[color] = True
+        if players[color] is None and bots[color] is None:
+            names[color] = bot_name
+            bots[color] = bot_name
             self._schedule_room_cleanup(game_id)
             return True
         return False
@@ -245,9 +246,11 @@ class ConnectionManager:
             if current == 0:
                 break
             color = "black" if current == 1 else "white"
-            if not bots.get(color):
+            bot_name = bots.get(color)
+            if bot_name is None:
                 break
-            move = game.best_move(current)
+            strategy = BOTS.get(bot_name)
+            move = strategy(game, current) if strategy else None
             if move:
                 x, y = move
                 game.make_move(x, y, current)
@@ -303,7 +306,7 @@ class ConnectionManager:
             existing.cancel()
 
         def seat_empty(color: str) -> bool:
-            return players[color] is None and not bots.get(color, False)
+            return players[color] is None and bots.get(color) is None
 
         if seat_empty("black") and seat_empty("white"):
             delay = 5 * 60
@@ -324,8 +327,8 @@ class ConnectionManager:
             if not players:
                 return
             if (
-                (players["black"] is None and not bots.get("black", False))
-                or (players["white"] is None and not bots.get("white", False))
+                (players["black"] is None and bots.get("black") is None)
+                or (players["white"] is None and bots.get("white") is None)
             ):
                 # Remove whether missing one or all players
                 self._remove_room(game_id)
@@ -378,6 +381,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                 "current": game.current_player,
                 "players": manager.names[game_id],
                 "ratings": manager.get_game_ratings(game_id),
+                "bots": list(BOTS.keys()),
             }
         )
     )
@@ -438,11 +442,12 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                     await websocket.send_text(json.dumps({"type": "error", "message": "Seat taken"}))
             elif action == "bot":
                 requested = msg.get("color")
+                bot_name = msg.get("bot", "")
                 if (
                     color
                     and requested in ("black", "white")
                     and requested != color
-                    and manager.add_bot(game_id, requested)
+                    and manager.add_bot(game_id, requested, bot_name)
                 ):
                     await manager.broadcast(
                         game_id,
