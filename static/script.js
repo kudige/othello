@@ -9,6 +9,7 @@ let playerName = localStorage.getItem('playerName');
 let currentBoard = null;
 let currentTurn = 0;
 let currentPlayers = null;
+let currentRatings = null;
 const gameId = window.location.pathname.split('/').pop();
 
 function connect() {
@@ -31,6 +32,7 @@ function connect() {
             currentBoard = msg.board;
             currentTurn = msg.current;
             currentPlayers = msg.players;
+            currentRatings = msg.ratings;
             renderBoard(currentBoard, currentTurn);
             renderPlayers(currentPlayers, currentTurn);
             if (playerName && playerColor) {
@@ -40,11 +42,13 @@ function connect() {
             currentBoard = msg.board;
             currentTurn = msg.current;
             currentPlayers = msg.players;
+            currentRatings = msg.ratings;
             renderBoard(currentBoard, currentTurn);
             renderPlayers(currentPlayers, currentTurn);
         } else if (msg.type === 'players') {
             currentPlayers = msg.players;
             currentTurn = msg.current;
+            currentRatings = msg.ratings;
             renderPlayers(currentPlayers, currentTurn);
         } else if (msg.type === 'seat') {
             playerColor = msg.color;
@@ -122,6 +126,8 @@ function renderPlayers(players, current) {
     const whitePlayer = document.getElementById('white-player');
     const blackName = document.getElementById('black-name');
     const whiteName = document.getElementById('white-name');
+    const blackRating = document.getElementById('black-rating');
+    const whiteRating = document.getElementById('white-rating');
 
     // Helper to render a seat
     function renderSeat(color, el, name) {
@@ -145,6 +151,11 @@ function renderPlayers(players, current) {
 
     renderSeat('black', blackName, players.black);
     renderSeat('white', whiteName, players.white);
+
+    if (currentRatings) {
+        blackRating.textContent = players.black ? currentRatings.black ?? '' : '';
+        whiteRating.textContent = players.white ? currentRatings.white ?? '' : '';
+    }
 
     blackPlayer.classList.toggle('active', current === 1);
     whitePlayer.classList.toggle('active', current === -1);
