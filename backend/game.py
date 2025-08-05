@@ -78,3 +78,18 @@ class Game:
         white = sum(cell == -1 for row in self.board for cell in row)
         return black, white
 
+    def best_move(self, player: Optional[int] = None) -> Optional[Tuple[int, int]]:
+        """Return the move that captures the most discs for ``player``.
+
+        If no moves are available, ``None`` is returned. A very small
+        heuristic is used: simply choose the move that flips the maximum
+        number of opponent discs. When several moves tie, the first one in
+        scan order is selected.
+        """
+        if player is None:
+            player = self.current_player
+        moves = self.valid_moves(player)
+        if not moves:
+            return None
+        return max(moves, key=lambda m: len(self._captures(m[0], m[1], player)))
+
