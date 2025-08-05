@@ -11,14 +11,18 @@
         <div id="white-player" class="player">White (<span id="white-count">0</span>): <span id="white-name"></span> <span class="rating" id="white-rating"></span></div>
         <div id="black-player" class="player">Black (<span id="black-count">0</span>): <span id="black-name"></span> <span class="rating" id="black-rating"></span></div>
     </div>
-    <div id="board"></div>
-    <div id="message"></div>
-    <div id="chat">
-        <div id="chat-log"></div>
-        <form id="chat-form">
-            <input id="chat-input" type="text" autocomplete="off" placeholder="Say something..." />
-            <button type="submit">Send</button>
-        </form>
+    <div id="game-wrapper">
+        <div id="board-container">
+            <div id="board"></div>
+            <div id="message"></div>
+        </div>
+        <div id="chat">
+            <div id="chat-log"></div>
+            <form id="chat-form">
+                <input id="chat-input" type="text" autocomplete="off" placeholder="Say something..." />
+                <button type="submit">Send</button>
+            </form>
+        </div>
     </div>
     <script src="/static/script.js"></script>
 </body>

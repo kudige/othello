@@ -6,6 +6,19 @@ body {
     text-align: center;
 }
 
+#game-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+#board-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 #players {
     width: 400px;
     margin: 10px auto;
@@ -41,7 +54,7 @@ body {
 }
 
 #board {
-    margin: 20px auto;
+    margin: 20px 0;
     width: 400px;
     height: 400px;
     display: grid;
@@ -54,8 +67,10 @@ body {
 
 #chat {
     width: 400px;
-    margin: 20px auto;
+    margin: 20px 0;
     text-align: left;
+    border: 8px solid #654321;
+    box-shadow: 0 0 10px #000 inset;
 }
 
 #chat-log {
