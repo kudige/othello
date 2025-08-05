@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 from typing import Dict, Optional, Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -18,7 +19,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # In-memory store of games and connections
 class ConnectionManager:
-    def __init__(self) -> None:
+    def __init__(self, ratings_path: Optional[str] = None) -> None:
         # Active connections per game keyed by color.
         self.active: Dict[str, Dict[str, Optional[WebSocket]]] = {}
         self.games: Dict[str, Game] = {}
@@ -34,7 +35,12 @@ class ConnectionManager:
         # Tasks that remove rooms after a period of inactivity
         self.cleanup_tasks: Dict[str, Optional[asyncio.Task]] = {}
         # Elo-style ratings for players by name
-        self.ratings: Dict[str, int] = {}
+        self.ratings_path = (
+            Path(ratings_path)
+            if ratings_path is not None
+            else Path(__file__).with_name("ratings.json")
+        )
+        self.ratings: Dict[str, int] = self._load_ratings()
         # Track which seats are occupied by bots. Values are bot names.
         self.bots: Dict[str, Dict[str, Optional[str]]] = {}
         self._counter = 1
@@ -157,6 +163,21 @@ class ConnectionManager:
             await ws.send_text(json.dumps(message))
 
     # Rating utilities
+    def _load_ratings(self) -> Dict[str, int]:
+        try:
+            with self.ratings_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+                return {k: int(v) for k, v in data.items()}
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
+
+    def _save_ratings(self) -> None:
+        try:
+            with self.ratings_path.open("w", encoding="utf-8") as f:
+                json.dump(self.ratings, f)
+        except OSError:
+            pass
+
     def get_rating(self, name: str) -> int:
         """Return the current rating for ``name`` defaulting to 1500."""
         return self.ratings.get(name, 1500)
@@ -197,6 +218,7 @@ class ConnectionManager:
             sb = sw = 0.5
         self.ratings[black_name] = rb + round(k * (sb - expected_black))
         self.ratings[white_name] = rw + round(k * (sw - expected_white))
+        self._save_ratings()
 
     def claim_seat(self, game_id: str, websocket: WebSocket, color: str, name: str) -> bool:
         """Attempt to assign ``websocket`` the requested seat."""
