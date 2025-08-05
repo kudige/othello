@@ -32,6 +32,8 @@ class ConnectionManager:
         self.watchers: Dict[str, Set[WebSocket]] = {}
         # Tasks that remove rooms after a period of inactivity
         self.cleanup_tasks: Dict[str, Optional[asyncio.Task]] = {}
+        # Elo-style ratings for players by name
+        self.ratings: Dict[str, int] = {}
         self._counter = 1
 
     def create_game(self) -> str:
@@ -122,6 +124,7 @@ class ConnectionManager:
                         "type": "players",
                         "players": self.names[game_id],
                         "current": game.current_player if game else 0,
+                        "ratings": self.get_game_ratings(game_id),
                     },
                 )
         finally:
@@ -137,6 +140,48 @@ class ConnectionManager:
         # And to any spectators
         for ws in self.watchers.get(game_id, set()):
             await ws.send_text(json.dumps(message))
+
+    # Rating utilities
+    def get_rating(self, name: str) -> int:
+        """Return the current rating for ``name`` defaulting to 1500."""
+        return self.ratings.get(name, 1500)
+
+    def get_game_ratings(self, game_id: str) -> Dict[str, int]:
+        names = self.names.get(game_id, {})
+        return {
+            "black": self.get_rating(names.get("black", "")),
+            "white": self.get_rating(names.get("white", "")),
+        }
+
+    def update_ratings(self, game_id: str) -> None:
+        names = self.names.get(game_id)
+        game = self.games.get(game_id)
+        if not names or not game:
+            return
+        black_name = names.get("black")
+        white_name = names.get("white")
+        if not black_name or not white_name:
+            return
+        black_score, white_score = game.score()
+        if black_score > white_score:
+            result = 1
+        elif white_score > black_score:
+            result = -1
+        else:
+            result = 0
+        rb = self.get_rating(black_name)
+        rw = self.get_rating(white_name)
+        expected_black = 1 / (1 + 10 ** ((rw - rb) / 400))
+        expected_white = 1 - expected_black
+        k = 32
+        if result == 1:
+            sb, sw = 1.0, 0.0
+        elif result == -1:
+            sb, sw = 0.0, 1.0
+        else:
+            sb = sw = 0.5
+        self.ratings[black_name] = rb + round(k * (sb - expected_black))
+        self.ratings[white_name] = rw + round(k * (sw - expected_white))
 
     def claim_seat(self, game_id: str, websocket: WebSocket, color: str, name: str) -> bool:
         """Attempt to assign ``websocket`` the requested seat."""
@@ -245,6 +290,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                 "color": color,
                 "current": game.current_player,
                 "players": manager.names[game_id],
+                "ratings": manager.get_game_ratings(game_id),
             }
         )
     )
@@ -257,6 +303,8 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                 x, y = msg["x"], msg["y"]
                 player = 1 if msg["color"] == "black" else -1
                 if game.current_player == player and game.make_move(x, y, player):
+                    if game.current_player == 0:
+                        manager.update_ratings(game_id)
                     await manager.broadcast(
                         game_id,
                         {
@@ -264,6 +312,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "board": game.board,
                             "current": game.current_player,
                             "players": manager.names[game_id],
+                            "ratings": manager.get_game_ratings(game_id),
                         },
                     )
                 else:
@@ -278,6 +327,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "type": "players",
                             "players": manager.names[game_id],
                             "current": game.current_player,
+                            "ratings": manager.get_game_ratings(game_id),
                         },
                     )
             elif action == "sit":
@@ -292,6 +342,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "type": "players",
                             "players": manager.names[game_id],
                             "current": game.current_player,
+                            "ratings": manager.get_game_ratings(game_id),
                         },
                     )
                 else:
