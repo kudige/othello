@@ -158,34 +158,7 @@ function renderPlayers(players, current) {
             if (availableBots.length > 0) {
                 const btn = document.createElement('button');
                 btn.textContent = 'Invite Bot';
-                btn.onclick = () => {
-                    const existing = el.querySelector('select');
-                    if (existing) existing.remove();
-
-                    const select = document.createElement('select');
-
-                    const placeholder = document.createElement('option');
-                    placeholder.textContent = 'Select a bot';
-                    placeholder.disabled = true;
-                    placeholder.selected = true;
-                    select.appendChild(placeholder);
-
-                    availableBots.forEach((b) => {
-                        const opt = document.createElement('option');
-                        opt.value = b;
-                        opt.textContent = b;
-                        select.appendChild(opt);
-                    });
-
-                    select.onchange = () => {
-                        const bot = select.value;
-                        socket.send(JSON.stringify({action: 'bot', color: color, bot: bot}));
-                        select.remove();
-                    };
-
-                    el.appendChild(select);
-                    select.focus();
-                };
+                btn.onclick = () => showBotPopup(color);
                 el.appendChild(btn);
             }
         } else {
@@ -206,6 +179,34 @@ function renderPlayers(players, current) {
 
     blackPlayer.classList.toggle('you', playerColor === 'black');
     whitePlayer.classList.toggle('you', playerColor === 'white');
+}
+
+function showBotPopup(color) {
+    const overlay = document.createElement('div');
+    overlay.className = 'popup-overlay';
+
+    const popup = document.createElement('div');
+    popup.className = 'popup';
+
+    availableBots.forEach((b) => {
+        const opt = document.createElement('div');
+        opt.className = 'bot-option';
+        opt.textContent = b;
+        opt.onclick = () => {
+            socket.send(JSON.stringify({action: 'bot', color: color, bot: b}));
+            overlay.remove();
+        };
+        popup.appendChild(opt);
+    });
+
+    const cancel = document.createElement('div');
+    cancel.className = 'bot-option';
+    cancel.textContent = 'Cancel';
+    cancel.onclick = () => overlay.remove();
+    popup.appendChild(cancel);
+
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
 }
 
 function validMoves(board, player) {
