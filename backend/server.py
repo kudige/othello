@@ -269,6 +269,16 @@ class ConnectionManager:
                 },
             )
 
+    def restart_game(self, game_id: str) -> bool:
+        """Reset the board for ``game_id`` while retaining players.
+
+        Returns ``True`` if the game existed and was reset.
+        """
+        if game_id not in self.games:
+            return False
+        self.games[game_id] = Game()
+        return True
+
     def _remove_room(self, game_id: str) -> None:
         """Remove all traces of a room."""
         for task in self.release_tasks.get(game_id, {}).values():
@@ -446,6 +456,25 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                     await manager.bot_move(game_id)
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Seat taken"}))
+            elif action == "restart":
+                if color and game.current_player == 0:
+                    manager.restart_game(game_id)
+                    game = manager.games[game_id]
+                    await manager.broadcast(
+                        game_id,
+                        {
+                            "type": "update",
+                            "board": game.board,
+                            "current": game.current_player,
+                            "players": manager.names[game_id],
+                            "ratings": manager.get_game_ratings(game_id),
+                        },
+                    )
+                    await manager.bot_move(game_id)
+                else:
+                    await websocket.send_text(
+                        json.dumps({"type": "error", "message": "Cannot restart"})
+                    )
     except WebSocketDisconnect:
         manager.disconnect(game_id, websocket)
 
