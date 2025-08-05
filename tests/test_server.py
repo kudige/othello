@@ -4,6 +4,7 @@ from fastapi import WebSocketDisconnect
 from fastapi.testclient import TestClient
 
 from backend.server import ConnectionManager, app
+from backend.game import Game
 
 
 class DummyWebSocket:
@@ -193,3 +194,18 @@ def test_bot_moves(monkeypatch):
         assert messages and messages[0]["type"] == "update"
 
     asyncio.run(run_test())
+
+
+def test_restart_game_resets_board(monkeypatch):
+    monkeypatch.setattr(
+        ConnectionManager, "_schedule_room_cleanup", lambda self, gid: None
+    )
+    manager = ConnectionManager()
+    gid = manager.create_game()
+    game = manager.games[gid]
+    game.board[0][0] = 1
+    game.current_player = 0
+    assert manager.restart_game(gid)
+    new_game = manager.games[gid]
+    assert new_game.current_player == -1
+    assert new_game.board == Game().board
