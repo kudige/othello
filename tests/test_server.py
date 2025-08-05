@@ -230,6 +230,40 @@ def test_roger_bot_strategy(monkeypatch):
     asyncio.run(run_test())
 
 
+def test_minnie_bot_strategy(monkeypatch):
+    async def run_test():
+        manager = ConnectionManager()
+        gid = manager.create_game()
+
+        # Board state where Minnie chooses (2,4)
+        game = manager.games[gid]
+        game.board = [
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 0, -1, 0, 0, 0, 0, 0],
+            [0, 0, 0, -1, 1, 0, 0, 0],
+            [0, 0, 0, 1, -1, 0, 0, 0],
+            [0, 0, 0, 1, 1, -1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+        ]
+        game.current_player = -1
+
+        async def fake_broadcast(game_id, message):
+            pass
+
+        monkeypatch.setattr(manager, "broadcast", fake_broadcast)
+
+        assert manager.add_bot(gid, "white", "Minnie")
+        await manager.bot_move(gid)
+
+        # Minnie should choose (2,4) in this position
+        assert game.board[2][4] == -1
+        assert game.current_player == 1
+
+    asyncio.run(run_test())
+
+
 def test_restart_game_resets_board(monkeypatch):
     monkeypatch.setattr(
         ConnectionManager, "_schedule_room_cleanup", lambda self, gid: None
