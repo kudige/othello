@@ -156,20 +156,36 @@ function renderPlayers(players, current) {
             el.appendChild(btn);
         } else if (playerColor !== color) {
             if (availableBots.length > 0) {
-                const select = document.createElement('select');
-                availableBots.forEach((b) => {
-                    const opt = document.createElement('option');
-                    opt.value = b;
-                    opt.textContent = b;
-                    select.appendChild(opt);
-                });
                 const btn = document.createElement('button');
                 btn.textContent = 'Invite Bot';
                 btn.onclick = () => {
-                    const bot = select.value;
-                    socket.send(JSON.stringify({action: 'bot', color: color, bot: bot}));
+                    const existing = el.querySelector('select');
+                    if (existing) existing.remove();
+
+                    const select = document.createElement('select');
+
+                    const placeholder = document.createElement('option');
+                    placeholder.textContent = 'Select a bot';
+                    placeholder.disabled = true;
+                    placeholder.selected = true;
+                    select.appendChild(placeholder);
+
+                    availableBots.forEach((b) => {
+                        const opt = document.createElement('option');
+                        opt.value = b;
+                        opt.textContent = b;
+                        select.appendChild(opt);
+                    });
+
+                    select.onchange = () => {
+                        const bot = select.value;
+                        socket.send(JSON.stringify({action: 'bot', color: color, bot: bot}));
+                        select.remove();
+                    };
+
+                    el.appendChild(select);
+                    select.focus();
                 };
-                el.appendChild(select);
                 el.appendChild(btn);
             }
         } else {
