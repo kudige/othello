@@ -183,15 +183,49 @@ def test_bot_moves(monkeypatch):
 
         monkeypatch.setattr(manager, "broadcast", fake_broadcast)
 
-        # Seat a bot as white and let it move (white starts)
-        assert manager.add_bot(gid, "white")
+        # Seat David as white and let it move (white starts)
+        assert manager.add_bot(gid, "white", "David")
         await manager.bot_move(gid)
 
         game = manager.games[gid]
-        # Bot should play a valid move and switch to black's turn
+        # David should play a valid move and switch to black's turn
         assert game.board[2][4] == -1
         assert game.current_player == 1
         assert messages and messages[0]["type"] == "update"
+
+    asyncio.run(run_test())
+
+
+def test_roger_bot_strategy(monkeypatch):
+    async def run_test():
+        manager = ConnectionManager()
+        gid = manager.create_game()
+
+        # Use a board state where Roger differs from David
+        game = manager.games[gid]
+        game.board = [
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, -1, 1, 0, 0, 0, 0],
+            [0, 0, 1, 1, 1, 1, 0, 0],
+            [0, 0, 1, 1, -1, -1, 0, 0],
+            [0, 0, 1, 1, -1, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+        ]
+        game.current_player = -1
+
+        async def fake_broadcast(game_id, message):
+            pass
+
+        monkeypatch.setattr(manager, "broadcast", fake_broadcast)
+
+        assert manager.add_bot(gid, "white", "Roger")
+        await manager.bot_move(gid)
+
+        # Roger should choose (0,2) in this position
+        assert game.board[0][2] == -1
+        assert game.current_player == 1
 
     asyncio.run(run_test())
 

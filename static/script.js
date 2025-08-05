@@ -11,6 +11,7 @@ let currentTurn = 0;
 let currentPlayers = null;
 let currentRatings = null;
 const gameId = window.location.pathname.split('/').pop();
+let availableBots = [];
 
 function connect() {
     if (!gameId) {
@@ -33,6 +34,7 @@ function connect() {
             currentTurn = msg.current;
             currentPlayers = msg.players;
             currentRatings = msg.ratings;
+            availableBots = msg.bots || [];
             renderBoard(currentBoard, currentTurn);
             renderPlayers(currentPlayers, currentTurn);
             if (playerName && playerColor) {
@@ -153,12 +155,23 @@ function renderPlayers(players, current) {
             };
             el.appendChild(btn);
         } else if (playerColor !== color) {
-            const btn = document.createElement('button');
-            btn.textContent = 'Invite Bot';
-            btn.onclick = () => {
-                socket.send(JSON.stringify({action: 'bot', color: color}));
-            };
-            el.appendChild(btn);
+            if (availableBots.length > 0) {
+                const select = document.createElement('select');
+                availableBots.forEach((b) => {
+                    const opt = document.createElement('option');
+                    opt.value = b;
+                    opt.textContent = b;
+                    select.appendChild(opt);
+                });
+                const btn = document.createElement('button');
+                btn.textContent = 'Invite Bot';
+                btn.onclick = () => {
+                    const bot = select.value;
+                    socket.send(JSON.stringify({action: 'bot', color: color, bot: bot}));
+                };
+                el.appendChild(select);
+                el.appendChild(btn);
+            }
         } else {
             el.textContent = 'Waiting...';
         }
