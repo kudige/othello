@@ -1,0 +1,63 @@
+# Development Guide
+
+This document explains the structure of the repository and provides guidance on common development tasks such as changing the look and feel of the game or adding new computer opponents.
+
+## Project layout
+
+```
+.
+├── backend          # Python source code
+│   ├── game.py      # Othello rules and board state
+│   ├── bots.py      # Bot strategies and registry
+│   └── server.py    # FastAPI application and WebSocket handling
+├── static           # Front-end assets served by FastAPI
+│   ├── index.html   # Lobby page
+│   ├── game.html    # Game board page
+│   ├── lobby.js     # Lobby logic
+│   ├── script.js    # Game board logic
+│   └── styles.css   # Visual styles for pages and board
+├── tests            # Pytest test suite
+└── requirements.txt # Python dependencies
+```
+
+### Backend
+- **`game.py`** contains the `Game` class implementing the rules of Othello: move validation, capturing discs, score calculation, and determining game end.
+- **`bots.py`** defines bot strategies. Each bot is a function that receives a `Game` instance and the integer representing the current player (`1` for black, `-1` for white) and returns the move to play or `None` if no moves exist. Bots are registered in the `BOTS` dictionary.
+- **`server.py`** sets up a FastAPI application with WebSocket endpoints. It manages active games, players, spectators and bots via the `ConnectionManager` class. The server also exposes available bot names to clients.
+
+### Frontend
+- HTML files in `static/` describe the lobby (`index.html`) and the game screen (`game.html`).
+- `script.js` renders the board using DOM elements and communicates with the server over WebSockets. It also lists available bot names provided by the server.
+- `styles.css` controls the game's visual appearance: board layout, colors, player panels, and lobby styling. Updating this file changes the game's "skin".
+
+## Common tasks
+
+### Changing the skin / look and feel
+1. **Edit CSS**: Most visual customisation is done in `static/styles.css`. Update colors, fonts, layout, or add new classes. For example, `.disc.black` and `.disc.white` define the appearance of the pieces, while `#board` controls the board background and grid.
+2. **Modify HTML (if necessary)**: If structural changes are required, edit `static/index.html` or `static/game.html` to add or rearrange elements.
+3. **Add assets**: Place images or additional files in the `static/` directory and reference them in the HTML or CSS using `/static/` paths.
+4. **Test in the browser**: Run the server (see below) and reload the pages to view changes.
+
+### Adding a new bot
+1. **Implement strategy**: Create a new function in `backend/bots.py` with the signature `def my_bot(game: Game, player: int) -> Optional[Tuple[int, int]]`. Use methods like `game.valid_moves()` and `game.make_move()` to evaluate moves.
+2. **Register bot**: Add the function to the `BOTS` dictionary in `bots.py`. The key will be the name displayed to users.
+3. **Server integration**: No further backend or frontend changes are required. The server automatically advertises bot names to clients, and the UI allows inviting any registered bot to an empty seat.
+4. **Testing**: Consider adding tests in `tests/` to cover the new strategy.
+
+## Development workflow
+
+1. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Run the development server:
+   ```bash
+   uvicorn backend.server:app --host 0.0.0.0 --reload
+   ```
+3. Execute the test suite:
+   ```bash
+   pytest
+   ```
+
+Keeping tests passing helps ensure that the game logic and server behavior remain correct as you make changes.
+
