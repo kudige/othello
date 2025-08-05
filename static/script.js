@@ -109,12 +109,20 @@ function renderBoard(board, current) {
     document.getElementById('white-count').textContent = whiteCount;
     const messageDiv = document.getElementById('message');
     if (current === 0) {
+        let msg;
         if (blackCount > whiteCount) {
-            messageDiv.textContent = 'Game over! Black wins.';
+            msg = 'Game over! Black wins.';
         } else if (whiteCount > blackCount) {
-            messageDiv.textContent = 'Game over! White wins.';
+            msg = 'Game over! White wins.';
         } else {
-            messageDiv.textContent = "Game over! It's a draw.";
+            msg = "Game over! It's a draw.";
+        }
+        messageDiv.textContent = msg + ' ';
+        if (playerColor) {
+            const btn = document.createElement('button');
+            btn.textContent = 'Restart';
+            btn.onclick = sendRestart;
+            messageDiv.appendChild(btn);
         }
     } else {
         messageDiv.textContent = '';
@@ -210,6 +218,12 @@ function captures(board, x, y, player) {
 function sendMove(x, y) {
     if (socket && playerColor) {
         socket.send(JSON.stringify({action: 'move', x: x, y: y, color: playerColor}));
+    }
+}
+
+function sendRestart() {
+    if (socket && playerColor) {
+        socket.send(JSON.stringify({action: 'restart'}));
     }
 }
 
