@@ -34,6 +34,8 @@ class ConnectionManager:
         self.cleanup_tasks: Dict[str, Optional[asyncio.Task]] = {}
         # Elo-style ratings for players by name
         self.ratings: Dict[str, int] = {}
+        # Track which seats are occupied by bots
+        self.bots: Dict[str, Dict[str, bool]] = {}
         self._counter = 1
 
     def create_game(self) -> str:
@@ -43,6 +45,7 @@ class ConnectionManager:
         self.active[game_id] = {"black": None, "white": None}
         self.games[game_id] = Game()
         self.names[game_id] = {"black": "", "white": ""}
+        self.bots[game_id] = {"black": False, "white": False}
         self.release_tasks[game_id] = {"black": None, "white": None}
         self.watchers[game_id] = set()
         self.room_names[game_id] = f"Game {game_id}"
@@ -61,6 +64,7 @@ class ConnectionManager:
             self.active[game_id] = {"black": None, "white": None}
             self.games[game_id] = Game()
             self.names[game_id] = {"black": "", "white": ""}
+            self.bots[game_id] = {"black": False, "white": False}
             self.release_tasks[game_id] = {"black": None, "white": None}
             self.watchers[game_id] = set()
             self.room_names.setdefault(game_id, f"Game {game_id}")
@@ -68,9 +72,19 @@ class ConnectionManager:
         names = self.names[game_id]
 
         color: Optional[str] = None
-        if name and names.get("black") == name and players["black"] is None:
+        if (
+            name
+            and names.get("black") == name
+            and players["black"] is None
+            and not self.bots.get(game_id, {}).get("black")
+        ):
             color = "black"
-        elif name and names.get("white") == name and players["white"] is None:
+        elif (
+            name
+            and names.get("white") == name
+            and players["white"] is None
+            and not self.bots.get(game_id, {}).get("white")
+        ):
             color = "white"
 
         if color:
@@ -189,7 +203,11 @@ class ConnectionManager:
         names = self.names.get(game_id)
         if not players or not names:
             return False
-        if players[color] is None and (names[color] in ("", name)):
+        if (
+            players[color] is None
+            and not self.bots.get(game_id, {}).get(color)
+            and (names[color] in ("", name))
+        ):
             players[color] = websocket
             names[color] = name
             self.watchers.get(game_id, set()).discard(websocket)
@@ -202,6 +220,55 @@ class ConnectionManager:
             return True
         return False
 
+    def add_bot(self, game_id: str, color: str) -> bool:
+        """Seat a bot in the given ``color`` if the seat is empty."""
+        players = self.active.get(game_id)
+        names = self.names.get(game_id)
+        bots = self.bots.get(game_id)
+        if not players or not names or not bots:
+            return False
+        if players[color] is None and not bots[color]:
+            names[color] = "Bot"
+            bots[color] = True
+            self._schedule_room_cleanup(game_id)
+            return True
+        return False
+
+    async def bot_move(self, game_id: str) -> None:
+        """Have any seated bots play their moves until it's a human turn."""
+        game = self.games.get(game_id)
+        if not game:
+            return
+        bots = self.bots.get(game_id, {})
+        while True:
+            current = game.current_player
+            if current == 0:
+                break
+            color = "black" if current == 1 else "white"
+            if not bots.get(color):
+                break
+            move = game.best_move(current)
+            if move:
+                x, y = move
+                game.make_move(x, y, current)
+            else:
+                # No valid moves: pass
+                game.current_player = -current
+                if not game.valid_moves(game.current_player):
+                    game.current_player = 0
+            if game.current_player == 0:
+                self.update_ratings(game_id)
+            await self.broadcast(
+                game_id,
+                {
+                    "type": "update",
+                    "board": game.board,
+                    "current": game.current_player,
+                    "players": self.names[game_id],
+                    "ratings": self.get_game_ratings(game_id),
+                },
+            )
+
     def _remove_room(self, game_id: str) -> None:
         """Remove all traces of a room."""
         for task in self.release_tasks.get(game_id, {}).values():
@@ -212,19 +279,25 @@ class ConnectionManager:
         self.active.pop(game_id, None)
         self.games.pop(game_id, None)
         self.names.pop(game_id, None)
+        self.bots.pop(game_id, None)
         self.room_names.pop(game_id, None)
 
     def _schedule_room_cleanup(self, game_id: str) -> None:
         """Schedule removal of a room based on player occupancy."""
         players = self.active.get(game_id)
+        bots = self.bots.get(game_id, {})
         if players is None:
             return
         existing = self.cleanup_tasks.get(game_id)
         if existing:
             existing.cancel()
-        if players["black"] is None and players["white"] is None:
+
+        def seat_empty(color: str) -> bool:
+            return players[color] is None and not bots.get(color, False)
+
+        if seat_empty("black") and seat_empty("white"):
             delay = 5 * 60
-        elif players["black"] is None or players["white"] is None:
+        elif seat_empty("black") or seat_empty("white"):
             delay = 30 * 60
         else:
             self.cleanup_tasks[game_id] = None
@@ -237,9 +310,13 @@ class ConnectionManager:
         try:
             await asyncio.sleep(delay)
             players = self.active.get(game_id)
+            bots = self.bots.get(game_id, {})
             if not players:
                 return
-            if players["black"] is None or players["white"] is None:
+            if (
+                (players["black"] is None and not bots.get("black", False))
+                or (players["white"] is None and not bots.get("white", False))
+            ):
                 # Remove whether missing one or all players
                 self._remove_room(game_id)
         finally:
@@ -315,6 +392,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "ratings": manager.get_game_ratings(game_id),
                         },
                     )
+                    await manager.bot_move(game_id)
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Invalid move"}))
             elif action == "name":
@@ -345,6 +423,27 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "ratings": manager.get_game_ratings(game_id),
                         },
                     )
+                    await manager.bot_move(game_id)
+                else:
+                    await websocket.send_text(json.dumps({"type": "error", "message": "Seat taken"}))
+            elif action == "bot":
+                requested = msg.get("color")
+                if (
+                    color
+                    and requested in ("black", "white")
+                    and requested != color
+                    and manager.add_bot(game_id, requested)
+                ):
+                    await manager.broadcast(
+                        game_id,
+                        {
+                            "type": "players",
+                            "players": manager.names[game_id],
+                            "current": game.current_player,
+                            "ratings": manager.get_game_ratings(game_id),
+                        },
+                    )
+                    await manager.bot_move(game_id)
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Seat taken"}))
     except WebSocketDisconnect:

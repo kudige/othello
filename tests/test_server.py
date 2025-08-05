@@ -167,3 +167,29 @@ def test_room_removed_when_empty(monkeypatch):
         assert gid not in manager.games
 
     asyncio.run(run_test())
+
+
+def test_bot_moves(monkeypatch):
+    async def run_test():
+        manager = ConnectionManager()
+        gid = manager.create_game()
+
+        # Capture broadcast messages
+        messages = []
+
+        async def fake_broadcast(game_id, message):
+            messages.append(message)
+
+        monkeypatch.setattr(manager, "broadcast", fake_broadcast)
+
+        # Seat a bot as white and let it move (white starts)
+        assert manager.add_bot(gid, "white")
+        await manager.bot_move(gid)
+
+        game = manager.games[gid]
+        # Bot should play a valid move and switch to black's turn
+        assert game.board[2][4] == -1
+        assert game.current_player == 1
+        assert messages and messages[0]["type"] == "update"
+
+    asyncio.run(run_test())

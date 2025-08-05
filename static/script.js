@@ -144,6 +144,13 @@ function renderPlayers(players, current) {
                 socket.send(JSON.stringify({action: 'sit', color: color, name: playerName}));
             };
             el.appendChild(btn);
+        } else if (playerColor !== color) {
+            const btn = document.createElement('button');
+            btn.textContent = 'Invite Bot';
+            btn.onclick = () => {
+                socket.send(JSON.stringify({action: 'bot', color: color}));
+            };
+            el.appendChild(btn);
         } else {
             el.textContent = 'Waiting...';
         }
