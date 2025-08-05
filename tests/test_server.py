@@ -3,6 +3,8 @@ import pytest
 from fastapi import WebSocketDisconnect
 from fastapi.testclient import TestClient
 
+import json
+import backend.server as server
 from backend.server import ConnectionManager, app
 from backend.game import Game
 
@@ -194,6 +196,44 @@ def test_bot_moves(monkeypatch):
         assert messages and messages[0]["type"] == "update"
         # Broadcast message should include the last move location
         assert messages[0]["last"] == (2, 4)
+
+    asyncio.run(run_test())
+
+
+def test_chat_broadcast(monkeypatch):
+    async def run_test():
+        manager = ConnectionManager()
+        gid = manager.create_game()
+        monkeypatch.setattr(server, "manager", manager)
+
+        messages = []
+
+        async def fake_broadcast(game_id, message):
+            messages.append(message)
+
+        monkeypatch.setattr(manager, "broadcast", fake_broadcast)
+
+        class ChatWS:
+            def __init__(self):
+                self.query_params = {}
+                self._sent = False
+
+            async def accept(self):
+                pass
+
+            async def send_text(self, text):
+                pass
+
+            async def receive_text(self):
+                if not self._sent:
+                    self._sent = True
+                    return json.dumps({"action": "chat", "name": "alice", "message": "hi"})
+                raise WebSocketDisconnect()
+
+        ws = ChatWS()
+        await server.websocket_endpoint(ws, gid)
+
+        assert any(m.get("type") == "chat" and m.get("message") == "hi" for m in messages)
 
     asyncio.run(run_test())
 

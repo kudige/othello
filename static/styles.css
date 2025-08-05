@@ -52,6 +52,32 @@ body {
     border: 8px solid #654321;
 }
 
+#chat {
+    width: 400px;
+    margin: 20px auto;
+    text-align: left;
+}
+
+#chat-log {
+    height: 150px;
+    overflow-y: auto;
+    background-color: rgba(0,0,0,0.2);
+    padding: 5px;
+}
+
+#chat-form {
+    display: flex;
+    margin-top: 5px;
+}
+
+#chat-input {
+    flex: 1;
+}
+
+#chat-form button {
+    margin-left: 5px;
+}
+
 .cell {
     border: 1px solid rgba(0,0,0,0.3);
     position: relative;

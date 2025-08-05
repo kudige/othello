@@ -486,6 +486,15 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                     await manager.bot_move(game_id)
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Seat taken"}))
+            elif action == "chat":
+                # Broadcast chat messages to all players and spectators
+                text = msg.get("message", "")
+                sender = msg.get("name", "")
+                if text:
+                    await manager.broadcast(
+                        game_id,
+                        {"type": "chat", "name": sender, "message": text},
+                    )
             elif action == "restart":
                 if color and game.current_player == 0:
                     manager.restart_game(game_id)
