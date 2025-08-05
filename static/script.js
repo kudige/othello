@@ -56,6 +56,8 @@ function connect() {
             currentTurn = msg.current;
             currentRatings = msg.ratings;
             renderPlayers(currentPlayers, currentTurn);
+        } else if (msg.type === 'chat') {
+            appendChat(msg.name, msg.message);
         } else if (msg.type === 'seat') {
             playerColor = msg.color;
             if (playerName) {
@@ -274,4 +276,29 @@ function sendRestart() {
     }
 }
 
-window.onload = connect;
+function appendChat(name, message) {
+    const log = document.getElementById('chat-log');
+    const entry = document.createElement('div');
+    entry.textContent = (name ? name : 'Anon') + ': ' + message;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+}
+
+function sendChat(e) {
+    e.preventDefault();
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (text && socket) {
+        socket.send(JSON.stringify({action: 'chat', name: playerName, message: text}));
+        input.value = '';
+    }
+}
+function init() {
+    connect();
+    const form = document.getElementById('chat-form');
+    if (form) {
+        form.addEventListener('submit', sendChat);
+    }
+}
+
+window.onload = init;
