@@ -178,9 +178,6 @@ function renderPlayers(players, current) {
     renderSeat('black', blackName, players.black);
     renderSeat('white', whiteName, players.white);
 
-    blackPlayer.classList.toggle('active', current === 1);
-    whitePlayer.classList.toggle('active', current === -1);
-
     blackPlayer.classList.toggle('you', playerColor === 'black');
     whitePlayer.classList.toggle('you', playerColor === 'white');
 }
