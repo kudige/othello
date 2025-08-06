@@ -29,24 +29,20 @@ body {
     position: absolute;
     top: 0;
     padding: 4px 8px;
-    width: 50%;
-    box-sizing: border-box;
+    border-radius: 4px 4px 0 0;
     font-size: 0.9em;
-    text-align: center;
 }
 
 #white-player {
     left: 0;
     background-color: rgba(255,255,255,0.8);
     color: #000;
-    border-radius: 4px 0 0 0;
 }
 
 #black-player {
     right: 0;
     background-color: rgba(0,0,0,0.8);
     color: #fff;
-    border-radius: 0 4px 0 0;
 }
 
 #white-count,
