@@ -145,8 +145,6 @@ function renderPlayers(players, current) {
     const whitePlayer = document.getElementById('white-player');
     const blackName = document.getElementById('black-name');
     const whiteName = document.getElementById('white-name');
-    const blackRating = document.getElementById('black-rating');
-    const whiteRating = document.getElementById('white-rating');
 
     // Helper to render a seat
     function renderSeat(color, el, name) {
@@ -179,11 +177,6 @@ function renderPlayers(players, current) {
 
     renderSeat('black', blackName, players.black);
     renderSeat('white', whiteName, players.white);
-
-    if (currentRatings) {
-        blackRating.textContent = players.black ? currentRatings.black ?? '' : '';
-        whiteRating.textContent = players.white ? currentRatings.white ?? '' : '';
-    }
 
     blackPlayer.classList.toggle('active', current === 1);
     whitePlayer.classList.toggle('active', current === -1);
