@@ -10,6 +10,8 @@ body {
 #game-wrapper {
     position: relative;
     width: 100%;
+    padding-right: min(400px, max(0px, calc(30vw - 200px)));
+    box-sizing: border-box;
 }
 
 #board-container {
@@ -21,7 +23,7 @@ body {
 
 #players {
     width: 400px;
-    margin: 10px auto;
+    margin: 10px auto 0;
     display: flex;
     justify-content: space-between;
 }
@@ -67,7 +69,7 @@ body {
 
 #chat {
     position: fixed;
-    top: 0px;
+    top: 0;
     right: 0;
     width: min(400px, max(0px, calc(30vw - 200px)));
     height: 100vh;
