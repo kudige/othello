@@ -10,9 +10,8 @@ body {
 #game-wrapper {
     position: relative;
     width: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    padding-right: min(400px, max(0px, calc(30vw - 200px)));
+    box-sizing: border-box;
 }
 
 #board-container {
@@ -69,6 +68,9 @@ body {
 }
 
 #chat {
+    position: fixed;
+    top: 0;
+    right: 0;
     width: min(400px, max(0px, calc(30vw - 200px)));
     height: 100vh;
     display: flex;
