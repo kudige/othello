@@ -70,18 +70,20 @@ body {
     top: 0;
     right: 0;
     width: min(400px, max(0px, calc(50vw - 200px)));
-    height: 100vh;
+    height: 400px;
     display: flex;
     flex-direction: column;
     text-align: left;
-    border: 8px solid #654321;
-    box-shadow: 0 0 10px #000 inset;
+    background-color: #f0f0f0;
+    color: #000;
+    border: none;
+    box-shadow: none;
 }
 
 #chat-log {
     flex: 1;
     overflow-y: auto;
-    background-color: rgba(0,0,0,0.2);
+    background-color: #fff;
     padding: 5px;
 }
 
