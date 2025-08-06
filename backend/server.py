@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
 from pathlib import Path
 from typing import Dict, Optional, Set
 
@@ -15,6 +16,40 @@ from .bots import BOTS
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+
+
+def _asset_tag(path: Path) -> str:
+    """Return a monotonically increasing tag for the given static asset.
+
+    The tag is derived from the number of git revisions that touched the file.
+    It changes whenever the file is committed, allowing cache busting without
+    manual updates.
+    """
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD", str(path)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except Exception:
+        # Fall back to 0 if git is unavailable
+        return "0"
+
+
+def _add_version_tags(html: str) -> str:
+    """Append a version query string to all static asset references."""
+
+    for asset in STATIC_DIR.iterdir():
+        if asset.is_file():
+            tag = _asset_tag(asset)
+            html = html.replace(f"/static/{asset.name}", f"/static/{asset.name}?{tag}")
+    return html
 
 
 # In-memory store of games and connections
@@ -364,14 +399,14 @@ manager = ConnectionManager()
 
 @app.get("/")
 async def get_lobby() -> HTMLResponse:
-    with open("static/index.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(f.read())
+    with open(STATIC_DIR / "index.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(_add_version_tags(f.read()))
 
 
 @app.get("/game/{game_id}")
 async def get_game(game_id: str) -> HTMLResponse:
-    with open("static/game.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(f.read())
+    with open(STATIC_DIR / "game.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(_add_version_tags(f.read()))
 
 
 @app.get("/rooms")
