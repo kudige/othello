@@ -66,8 +66,8 @@ body {
 }
 
 #chat {
-    position: fixed;
-    top: 0;
+    position: absolute;
+    top: 20px;
     right: 0;
     width: min(400px, max(0px, calc(50vw - 200px)));
     height: 400px;
