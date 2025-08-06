@@ -4,19 +4,19 @@ body {
     font-family: Arial, sans-serif;
     color: #fff;
     text-align: center;
+    margin: 0;
 }
 
 #game-wrapper {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 20px;
+    position: relative;
+    width: 100%;
 }
 
 #board-container {
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin: 0 auto;
 }
 
 #players {
@@ -66,15 +66,20 @@ body {
 }
 
 #chat {
-    width: 400px;
-    margin: 20px 0;
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(400px, max(0px, calc(50vw - 200px)));
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
     text-align: left;
     border: 8px solid #654321;
     box-shadow: 0 0 10px #000 inset;
 }
 
 #chat-log {
-    height: 150px;
+    flex: 1;
     overflow-y: auto;
     background-color: rgba(0,0,0,0.2);
     padding: 5px;
