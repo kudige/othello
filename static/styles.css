@@ -51,10 +51,6 @@ body {
     margin-left: 4px;
 }
 
-.player.active {
-    border: 2px solid #fff;
-}
-
 .player.you {
     background-color: rgba(255, 255, 0, 0.3);
     font-weight: bold;
