@@ -25,21 +25,33 @@ body {
 }
 
 #board-area {
-    display: flex;
+    position: relative;
+    width: 416px;
+    height: 416px;
+    margin: 0 auto;
 }
 
 #player-info {
+    position: absolute;
+    top: 8px;
+    left: calc(100% + 20px);
     display: grid;
     grid-template-rows: repeat(8, 1fr);
     height: 400px;
-    margin-left: 20px;
-    margin-top: 8px;
     width: 150px;
 }
 
 .player-row {
     display: flex;
     align-items: center;
+    white-space: nowrap;
+}
+
+#white-name,
+#black-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #white-player {
@@ -62,13 +74,14 @@ body {
 }
 
 .score-circle.black {
-    background: radial-gradient(circle at 30% 30%, #555, #000);
+    background-color: #000;
     color: #fff;
 }
 
 .score-circle.white {
-    background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+    background-color: #fff;
     color: #000;
+    border: 1px solid #000;
 }
 
 #white-count,
