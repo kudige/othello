@@ -23,6 +23,23 @@ class Game:
         # moves have been played yet.
         self.last_move: Optional[Tuple[int, int]] = None
 
+    def copy(self) -> "Game":
+        """Return a deep copy of the current game state.
+
+        The game object is small and consists primarily of primitive data
+        structures, so duplicating it manually is significantly faster than
+        using ``copy.deepcopy`` for the thousands of copies performed during
+        bot search.
+        """
+
+        # Bypass ``__init__`` to avoid re-creating the initial board only to
+        # overwrite it immediately.
+        new_game = Game.__new__(Game)
+        new_game.board = [row[:] for row in self.board]
+        new_game.current_player = self.current_player
+        new_game.last_move = self.last_move
+        return new_game
+
     def inside(self, x: int, y: int) -> bool:
         return 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE
 
