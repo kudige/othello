@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from typing import Callable, Optional, Tuple
-import copy
 
 from .game import Game
 
@@ -22,7 +21,7 @@ def roger(game: Game, player: int) -> Optional[Tuple[int, int]]:
     best_move = moves[0]
     min_opponent = float("inf")
     for x, y in moves:
-        sim = copy.deepcopy(game)
+        sim = game.copy()
         sim.make_move(x, y, player)
         opp_moves = len(sim.valid_moves(-player))
         if opp_moves < min_opponent:
@@ -64,14 +63,14 @@ def minnie(game: Game, player: int, depth: int = 3) -> Optional[Tuple[int, int]]
         if turn == player:
             best = -float("inf")
             for mx, my in moves:
-                sim = copy.deepcopy(g)
+                sim = g.copy()
                 sim.make_move(mx, my, turn)
                 best = max(best, minimax(sim, -turn, d - 1))
             return best
         else:
             best = float("inf")
             for mx, my in moves:
-                sim = copy.deepcopy(g)
+                sim = g.copy()
                 sim.make_move(mx, my, turn)
                 best = min(best, minimax(sim, -turn, d - 1))
             return best
@@ -82,7 +81,7 @@ def minnie(game: Game, player: int, depth: int = 3) -> Optional[Tuple[int, int]]
     best_move = moves[0]
     best_val = -float("inf")
     for x, y in moves:
-        sim = copy.deepcopy(game)
+        sim = game.copy()
         sim.make_move(x, y, player)
         val = minimax(sim, -player, depth - 1)
         if val > best_val:
@@ -199,7 +198,7 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
         if turn == player:
             value = -float("inf")
             for mx, my in order_moves(g, moves, turn):
-                sim = copy.deepcopy(g)
+                sim = g.copy()
                 sim.make_move(mx, my, turn)
                 value = max(value, alphabeta(sim, depth - 1, alpha, beta, -turn))
                 alpha = max(alpha, value)
@@ -208,7 +207,7 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
         else:
             value = float("inf")
             for mx, my in order_moves(g, moves, turn):
-                sim = copy.deepcopy(g)
+                sim = g.copy()
                 sim.make_move(mx, my, turn)
                 value = min(value, alphabeta(sim, depth - 1, alpha, beta, -turn))
                 beta = min(beta, value)
@@ -229,7 +228,7 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
     for depth in range(1, max_depth + 1):  # iterative deepening
         best_val = -float("inf")
         for x, y in order_moves(game, moves, player):
-            sim = copy.deepcopy(game)
+            sim = game.copy()
             sim.make_move(x, y, player)
             val = alphabeta(sim, depth - 1, -float("inf"), float("inf"), -player)
             if val > best_val:
