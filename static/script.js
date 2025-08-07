@@ -189,14 +189,15 @@ function renderPlayers(players, spectators, current) {
     if (list) {
         list.innerHTML = '';
         const entries = [];
-        if (players.black) entries.push({label: 'Black', name: players.black});
-        if (players.white) entries.push({label: 'White', name: players.white});
+        if (players.black) entries.push({role: 'black', name: players.black});
+        if (players.white) entries.push({role: 'white', name: players.white});
         spectators.forEach((n) => {
-            if (n) entries.push({label: 'Spectator', name: n});
+            if (n) entries.push({role: 'spectator', name: n});
         });
         entries.forEach((e) => {
             const li = document.createElement('li');
-            li.textContent = e.label ? `${e.label}: ${e.name}` : e.name;
+            li.textContent = e.name;
+            li.classList.add(e.role);
             if (e.name === playerName) {
                 li.textContent += ' (You)';
             }
