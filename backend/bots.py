@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Callable, Optional, Tuple
+from functools import partial
 
 from .game import Game
 
@@ -241,6 +242,8 @@ BOTS: dict[str, BotStrategy] = {
     "David": david,
     "Roger": roger,
     "Minnie": minnie,
-    "Sasha": sasha,
+    "Sasha senior": sasha,
+    "Sasha junior": partial(sasha, max_depth=5),
+    "Sasha intern": partial(sasha, max_depth=4),
 }
 
