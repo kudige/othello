@@ -102,8 +102,8 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
     total_pieces = sum(abs(cell) for row in game.board for cell in row)
     if total_pieces == 4:  # initial position
         if player == -1:
-            return (2, 3)  # classic opening move for white
-        return (2, 4)  # answer for black
+            return (2, 4)  # classic opening move for white
+        return (2, 3)  # answer for black
 
     opponent = -player
 
