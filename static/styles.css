@@ -7,6 +7,21 @@ body {
     margin: 0;
 }
 
+#back-to-lobby {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: #fff;
+    text-decoration: none;
+    background-color: #654321;
+    padding: 5px 10px;
+    border-radius: 4px;
+}
+
+#back-to-lobby:hover {
+    background-color: #805a2c;
+}
+
 #game-wrapper {
     display: flex;
     flex-direction: column;
