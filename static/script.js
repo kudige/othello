@@ -141,26 +141,32 @@ function renderBoard(board, current, last) {
 }
 
 function renderPlayers(players, current) {
-    const blackPlayer = document.getElementById('black-player');
-    const whitePlayer = document.getElementById('white-player');
     const blackName = document.getElementById('black-name');
     const whiteName = document.getElementById('white-name');
+    const blackScore = document.getElementById('black-score');
+    const whiteScore = document.getElementById('white-score');
 
     // Helper to render a seat
-    function renderSeat(color, el, name) {
-        el.innerHTML = '';
+    function renderSeat(color, nameEl, scoreEl, name) {
+        nameEl.innerHTML = '';
+        scoreEl.textContent = '';
         if (name) {
-            el.textContent = name;
+            let display = name;
             if (playerColor === color) {
-                el.textContent += ' (You)';
+                display += ' (you)';
             }
+            const rating = currentRatings && currentRatings[color];
+            if (rating) {
+                scoreEl.textContent = `(${rating})`;
+            }
+            nameEl.textContent = display;
         } else if (!playerColor) {
             const btn = document.createElement('button');
             btn.textContent = 'Sit';
             btn.onclick = () => {
                 socket.send(JSON.stringify({action: 'sit', color: color, name: playerName}));
             };
-            el.appendChild(btn);
+            nameEl.appendChild(btn);
         } else if (playerColor !== color) {
             if (availableBots.length > 0) {
                 const btn = document.createElement('button');
@@ -168,18 +174,15 @@ function renderPlayers(players, current) {
                 btn.onclick = () => {
                     openBotPopup(color);
                 };
-                el.appendChild(btn);
+                nameEl.appendChild(btn);
             }
         } else {
-            el.textContent = 'Waiting...';
+            nameEl.textContent = 'Waiting...';
         }
     }
 
-    renderSeat('black', blackName, players.black);
-    renderSeat('white', whiteName, players.white);
-
-    blackPlayer.classList.toggle('you', playerColor === 'black');
-    whitePlayer.classList.toggle('you', playerColor === 'white');
+    renderSeat('white', whiteName, whiteScore, players.white);
+    renderSeat('black', blackName, blackScore, players.black);
 }
 
 function openBotPopup(color) {
