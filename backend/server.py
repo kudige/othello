@@ -466,7 +466,8 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "ratings": manager.get_game_ratings(game_id),
                         },
                     )
-                    await manager.bot_move(game_id)
+                    # Let the player see their move before the bot responds.
+                    asyncio.create_task(manager.bot_move(game_id))
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Invalid move"}))
             elif action == "name":
@@ -497,7 +498,8 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "ratings": manager.get_game_ratings(game_id),
                         },
                     )
-                    await manager.bot_move(game_id)
+                    # Run bot moves asynchronously so the UI updates immediately.
+                    asyncio.create_task(manager.bot_move(game_id))
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Seat taken"}))
             elif action == "bot":
@@ -518,7 +520,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "ratings": manager.get_game_ratings(game_id),
                         },
                     )
-                    await manager.bot_move(game_id)
+                    asyncio.create_task(manager.bot_move(game_id))
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Seat taken"}))
             elif action == "chat":
@@ -545,7 +547,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "ratings": manager.get_game_ratings(game_id),
                         },
                     )
-                    await manager.bot_move(game_id)
+                    asyncio.create_task(manager.bot_move(game_id))
                 else:
                     await websocket.send_text(
                         json.dumps({"type": "error", "message": "Cannot restart"})
