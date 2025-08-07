@@ -134,6 +134,11 @@ function renderBoard(board, current, last) {
             btn.textContent = 'Restart';
             btn.onclick = sendRestart;
             messageDiv.appendChild(btn);
+            messageDiv.appendChild(document.createTextNode(' '));
+            const standBtn = document.createElement('button');
+            standBtn.textContent = 'Stand Up';
+            standBtn.onclick = sendStand;
+            messageDiv.appendChild(standBtn);
         }
     } else {
         messageDiv.textContent = '';
@@ -266,6 +271,12 @@ function sendMove(x, y) {
 function sendRestart() {
     if (socket && playerColor) {
         socket.send(JSON.stringify({action: 'restart'}));
+    }
+}
+
+function sendStand() {
+    if (socket && playerColor) {
+        socket.send(JSON.stringify({action: 'stand'}));
     }
 }
 

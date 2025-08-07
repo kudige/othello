@@ -321,3 +321,28 @@ def test_restart_game_resets_board(monkeypatch):
     assert new_game.current_player == -1
     assert new_game.board == Game().board
     assert new_game.last_move is None
+
+
+def test_stand_up_removes_player_and_bot(monkeypatch):
+    async def run_test():
+        monkeypatch.setattr(
+            ConnectionManager, "_schedule_room_cleanup", lambda self, gid: None
+        )
+        manager = ConnectionManager()
+        gid = manager.create_game()
+        game = manager.games[gid]
+        game.current_player = 0
+
+        ws = DummyWebSocket()
+        await manager.connect(gid, ws, name="alice")
+        assert manager.claim_seat(gid, ws, "black", "alice")
+        assert manager.add_bot(gid, "white", "David")
+
+        assert manager.stand_up(gid, ws, "black")
+        assert manager.active[gid]["black"] is None
+        assert manager.names[gid]["black"] == ""
+        assert ws in manager.watchers[gid]
+        assert manager.bots[gid]["white"] is None
+        assert manager.names[gid]["white"] == ""
+
+    asyncio.run(run_test())
