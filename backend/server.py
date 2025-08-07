@@ -5,7 +5,7 @@ import asyncio
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, Optional, Set
+from typing import Dict, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
@@ -65,8 +65,9 @@ class ConnectionManager:
         self.release_tasks: Dict[str, Dict[str, Optional[asyncio.Task]]] = {}
         # Human friendly room names
         self.room_names: Dict[str, str] = {}
-        # Connections that are merely spectating a given game.
-        self.watchers: Dict[str, Set[WebSocket]] = {}
+        # Connections that are merely spectating a given game along with
+        # their chosen display names.
+        self.watchers: Dict[str, Dict[WebSocket, str]] = {}
         # Tasks that remove rooms after a period of inactivity
         self.cleanup_tasks: Dict[str, Optional[asyncio.Task]] = {}
         # Elo-style ratings for players by name
@@ -89,7 +90,7 @@ class ConnectionManager:
         self.names[game_id] = {"black": "", "white": ""}
         self.bots[game_id] = {"black": None, "white": None}
         self.release_tasks[game_id] = {"black": None, "white": None}
-        self.watchers[game_id] = set()
+        self.watchers[game_id] = {}
         self.room_names[game_id] = f"Game {game_id}"
         self._schedule_room_cleanup(game_id)
         return game_id
@@ -108,7 +109,7 @@ class ConnectionManager:
             self.names[game_id] = {"black": "", "white": ""}
             self.bots[game_id] = {"black": None, "white": None}
             self.release_tasks[game_id] = {"black": None, "white": None}
-            self.watchers[game_id] = set()
+            self.watchers[game_id] = {}
             self.room_names.setdefault(game_id, f"Game {game_id}")
         players = self.active[game_id]
         names = self.names[game_id]
@@ -138,7 +139,7 @@ class ConnectionManager:
                 self.release_tasks[game_id][color] = None
         else:
             # Join as spectator
-            self.watchers.setdefault(game_id, set()).add(websocket)
+            self.watchers.setdefault(game_id, {})[websocket] = name or ""
         self._schedule_room_cleanup(game_id)
         return color
 
@@ -147,9 +148,22 @@ class ConnectionManager:
         if not players:
             return
         # Remove from spectator list if present
-        watchers = self.watchers.get(game_id, set())
+        watchers = self.watchers.get(game_id, {})
         if websocket in watchers:
-            watchers.discard(websocket)
+            watchers.pop(websocket, None)
+            game = self.games.get(game_id)
+            asyncio.create_task(
+                self.broadcast(
+                    game_id,
+                    {
+                        "type": "players",
+                        "players": self.names.get(game_id, {}),
+                        "current": game.current_player if game else 0,
+                        "ratings": self.get_game_ratings(game_id),
+                        "spectators": list(watchers.values()),
+                    },
+                )
+            )
             return
         for color, ws in players.items():
             if ws is websocket:
@@ -181,6 +195,7 @@ class ConnectionManager:
                         "players": self.names[game_id],
                         "current": game.current_player if game else 0,
                         "ratings": self.get_game_ratings(game_id),
+                        "spectators": list(self.watchers.get(game_id, {}).values()),
                     },
                 )
         finally:
@@ -194,7 +209,7 @@ class ConnectionManager:
             if connection:
                 await connection.send_text(json.dumps(message))
         # And to any spectators
-        for ws in self.watchers.get(game_id, set()):
+        for ws in self.watchers.get(game_id, {}):
             await ws.send_text(json.dumps(message))
 
     # Rating utilities
@@ -268,7 +283,7 @@ class ConnectionManager:
         ):
             players[color] = websocket
             names[color] = name
-            self.watchers.get(game_id, set()).discard(websocket)
+            self.watchers.get(game_id, {}).pop(websocket, None)
             # Cancel any pending release task
             task = self.release_tasks.get(game_id, {}).get(color)
             if task:
@@ -327,6 +342,7 @@ class ConnectionManager:
                     "current": game.current_player,
                     "players": self.names[game_id],
                     "ratings": self.get_game_ratings(game_id),
+                    "spectators": list(self.watchers.get(game_id, {}).values()),
                 },
             )
 
@@ -439,10 +455,21 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                 "color": color,
                 "current": game.current_player,
                 "players": manager.names[game_id],
+                "spectators": list(manager.watchers.get(game_id, {}).values()),
                 "ratings": manager.get_game_ratings(game_id),
                 "bots": list(BOTS.keys()),
             }
         )
+    )
+    await manager.broadcast(
+        game_id,
+        {
+            "type": "players",
+            "players": manager.names[game_id],
+            "current": game.current_player,
+            "ratings": manager.get_game_ratings(game_id),
+            "spectators": list(manager.watchers.get(game_id, {}).values()),
+        },
     )
     try:
         while True:
@@ -464,24 +491,28 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "current": game.current_player,
                             "players": manager.names[game_id],
                             "ratings": manager.get_game_ratings(game_id),
+                            "spectators": list(manager.watchers.get(game_id, {}).values()),
                         },
                     )
                     await manager.bot_move(game_id)
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Invalid move"}))
             elif action == "name":
-                # Store the player's name and inform all connected clients.
+                # Store the player's or spectator's name and inform all connected clients.
                 if color:
                     manager.names[game_id][color] = msg.get("name", "")
-                    await manager.broadcast(
-                        game_id,
-                        {
-                            "type": "players",
-                            "players": manager.names[game_id],
-                            "current": game.current_player,
-                            "ratings": manager.get_game_ratings(game_id),
-                        },
-                    )
+                else:
+                    manager.watchers.get(game_id, {})[websocket] = msg.get("name", "")
+                await manager.broadcast(
+                    game_id,
+                    {
+                        "type": "players",
+                        "players": manager.names[game_id],
+                        "current": game.current_player,
+                        "ratings": manager.get_game_ratings(game_id),
+                        "spectators": list(manager.watchers.get(game_id, {}).values()),
+                    },
+                )
             elif action == "sit":
                 requested = msg.get("color")
                 desired_name = msg.get("name", "")
@@ -495,6 +526,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "players": manager.names[game_id],
                             "current": game.current_player,
                             "ratings": manager.get_game_ratings(game_id),
+                            "spectators": list(manager.watchers.get(game_id, {}).values()),
                         },
                     )
                     await manager.bot_move(game_id)
@@ -516,6 +548,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "players": manager.names[game_id],
                             "current": game.current_player,
                             "ratings": manager.get_game_ratings(game_id),
+                            "spectators": list(manager.watchers.get(game_id, {}).values()),
                         },
                     )
                     await manager.bot_move(game_id)
@@ -543,6 +576,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "current": game.current_player,
                             "players": manager.names[game_id],
                             "ratings": manager.get_game_ratings(game_id),
+                            "spectators": list(manager.watchers.get(game_id, {}).values()),
                         },
                     )
                     await manager.bot_move(game_id)

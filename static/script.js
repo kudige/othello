@@ -10,6 +10,7 @@ let currentBoard = null;
 let currentTurn = 0;
 let currentPlayers = null;
 let currentRatings = null;
+let currentSpectators = [];
 const gameId = window.location.pathname.split('/').pop();
 let availableBots = [];
 // Track the last move sent by the server so we can highlight it.
@@ -36,11 +37,12 @@ function connect() {
             currentTurn = msg.current;
             currentPlayers = msg.players;
             currentRatings = msg.ratings;
+            currentSpectators = msg.spectators || [];
             lastMove = msg.last;
             availableBots = msg.bots || [];
             renderBoard(currentBoard, currentTurn, lastMove);
-            renderPlayers(currentPlayers, currentTurn);
-            if (playerName && playerColor) {
+            renderPlayers(currentPlayers, currentSpectators, currentTurn);
+            if (playerName) {
                 socket.send(JSON.stringify({action: 'name', name: playerName}));
             }
         } else if (msg.type === 'update') {
@@ -48,14 +50,16 @@ function connect() {
             currentTurn = msg.current;
             currentPlayers = msg.players;
             currentRatings = msg.ratings;
+            currentSpectators = msg.spectators || [];
             lastMove = msg.last;
             renderBoard(currentBoard, currentTurn, lastMove);
-            renderPlayers(currentPlayers, currentTurn);
+            renderPlayers(currentPlayers, currentSpectators, currentTurn);
         } else if (msg.type === 'players') {
             currentPlayers = msg.players;
             currentTurn = msg.current;
             currentRatings = msg.ratings;
-            renderPlayers(currentPlayers, currentTurn);
+            currentSpectators = msg.spectators || [];
+            renderPlayers(currentPlayers, currentSpectators, currentTurn);
         } else if (msg.type === 'chat') {
             appendChat(msg.name, msg.message);
         } else if (msg.type === 'seat') {
@@ -69,7 +73,7 @@ function connect() {
                 renderBoard(currentBoard, currentTurn, lastMove);
             }
             if (currentPlayers) {
-                renderPlayers(currentPlayers, currentTurn);
+                renderPlayers(currentPlayers, currentSpectators, currentTurn);
             }
         } else if (msg.type === 'error') {
             alert(msg.message);
@@ -140,7 +144,7 @@ function renderBoard(board, current, last) {
     }
 }
 
-function renderPlayers(players, current) {
+function renderPlayers(players, spectators, current) {
     const blackPlayer = document.getElementById('black-player');
     const whitePlayer = document.getElementById('white-player');
     const blackName = document.getElementById('black-name');
@@ -180,6 +184,25 @@ function renderPlayers(players, current) {
 
     blackPlayer.classList.toggle('you', playerColor === 'black');
     whitePlayer.classList.toggle('you', playerColor === 'white');
+
+    const list = document.getElementById('player-names');
+    if (list) {
+        list.innerHTML = '';
+        const entries = [];
+        if (players.black) entries.push({label: 'Black', name: players.black});
+        if (players.white) entries.push({label: 'White', name: players.white});
+        spectators.forEach((n) => {
+            if (n) entries.push({label: 'Spectator', name: n});
+        });
+        entries.forEach((e) => {
+            const li = document.createElement('li');
+            li.textContent = e.label ? `${e.label}: ${e.name}` : e.name;
+            if (e.name === playerName) {
+                li.textContent += ' (You)';
+            }
+            list.appendChild(li);
+        });
+    }
 }
 
 function openBotPopup(color) {
