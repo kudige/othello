@@ -323,6 +323,25 @@ def test_restart_game_resets_board(monkeypatch):
     assert new_game.last_move is None
 
 
+def test_load_game_updates_board(monkeypatch):
+    monkeypatch.setattr(
+        ConnectionManager, "_schedule_room_cleanup", lambda self, gid: None
+    )
+    manager = ConnectionManager()
+    gid = manager.create_game()
+    snap = {
+        "board": [[0 for _ in range(8)] for _ in range(8)],
+        "current": 1,
+        "last": [2, 3],
+    }
+    snap["board"][2][3] = 1
+    assert manager.load_game(gid, snap)
+    game = manager.games[gid]
+    assert game.board[2][3] == 1
+    assert game.current_player == 1
+    assert game.last_move == (2, 3)
+
+
 def test_stand_up_removes_player_and_bot(monkeypatch):
     async def run_test():
         monkeypatch.setattr(

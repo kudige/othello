@@ -14,6 +14,16 @@ const gameId = window.location.pathname.split('/').pop();
 let availableBots = [];
 // Track the last move sent by the server so we can highlight it.
 let lastMove = null;
+// History of board states for replay and saving.
+let moveHistory = [];
+let replayTimer = null;
+let replayIdx = 0;
+let replayPaused = false;
+let isReplaying = false;
+
+function cloneBoard(board) {
+    return board.map(row => row.slice());
+}
 
 function connect() {
     if (!gameId) {
@@ -38,6 +48,7 @@ function connect() {
             currentRatings = msg.ratings;
             lastMove = msg.last;
             availableBots = msg.bots || [];
+            moveHistory = [{board: cloneBoard(msg.board), current: msg.current, last: msg.last}];
             renderBoard(currentBoard, currentTurn, lastMove);
             renderPlayers(currentPlayers, currentTurn);
             if (playerName && playerColor) {
@@ -49,6 +60,7 @@ function connect() {
             currentPlayers = msg.players;
             currentRatings = msg.ratings;
             lastMove = msg.last;
+            moveHistory.push({board: cloneBoard(msg.board), current: msg.current, last: msg.last});
             renderBoard(currentBoard, currentTurn, lastMove);
             renderPlayers(currentPlayers, currentTurn);
         } else if (msg.type === 'players') {
@@ -95,7 +107,8 @@ function renderBoard(board, current, last) {
             if (
                 cell === 0 &&
                 playerColor === turnColor &&
-                valid.has(key)
+                valid.has(key) &&
+                !isReplaying
             ) {
                 cellDiv.classList.add('valid');
                 cellDiv.onclick = () => sendMove(x, y);
@@ -129,7 +142,17 @@ function renderBoard(board, current, last) {
             msg = "Game over! It's a draw.";
         }
         messageDiv.textContent = msg + ' ';
+        const replayBtn = document.createElement('button');
+        replayBtn.textContent = 'Replay';
+        replayBtn.onclick = startReplay;
+        messageDiv.appendChild(replayBtn);
+        messageDiv.appendChild(document.createTextNode(' '));
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Save Game';
+        saveBtn.onclick = saveGame;
+        messageDiv.appendChild(saveBtn);
         if (playerColor) {
+            messageDiv.appendChild(document.createTextNode(' '));
             const btn = document.createElement('button');
             btn.textContent = 'Restart';
             btn.onclick = sendRestart;
@@ -270,6 +293,7 @@ function sendMove(x, y) {
 
 function sendRestart() {
     if (socket && playerColor) {
+        moveHistory = [];
         socket.send(JSON.stringify({action: 'restart'}));
     }
 }
@@ -278,6 +302,116 @@ function sendStand() {
     if (socket && playerColor) {
         socket.send(JSON.stringify({action: 'stand'}));
     }
+}
+
+function startReplay() {
+    if (replayTimer) {
+        clearInterval(replayTimer);
+    }
+    if (moveHistory.length === 0) {
+        return;
+    }
+    isReplaying = true;
+    replayIdx = 0;
+    replayPaused = false;
+    const boardDiv = document.getElementById('board');
+    boardDiv.onclick = toggleReplay;
+    advanceReplay();
+    replayTimer = setInterval(advanceReplay, 1000);
+}
+
+function advanceReplay() {
+    if (replayPaused) {
+        updateReplayMessage();
+        return;
+    }
+    replayIdx++;
+    if (replayIdx >= moveHistory.length) {
+        clearInterval(replayTimer);
+        replayTimer = null;
+        isReplaying = false;
+        const boardDiv = document.getElementById('board');
+        boardDiv.onclick = null;
+        const last = moveHistory[moveHistory.length - 1];
+        renderBoard(last.board, last.current, last.last);
+        return;
+    }
+    const snap = moveHistory[replayIdx];
+    renderBoard(snap.board, snap.current, snap.last);
+    updateReplayMessage();
+}
+
+function toggleReplay() {
+    replayPaused = !replayPaused;
+    updateReplayMessage();
+}
+
+function stepReplay(delta) {
+    replayIdx = Math.max(0, Math.min(replayIdx + delta, moveHistory.length - 1));
+    const snap = moveHistory[replayIdx];
+    renderBoard(snap.board, snap.current, snap.last);
+    updateReplayMessage();
+}
+
+function updateReplayMessage() {
+    const messageDiv = document.getElementById('message');
+    const total = Math.max(moveHistory.length - 1, 0);
+    const move = Math.min(replayIdx, total);
+    let text = `Replaying: move ${move}/${total}`;
+    if (replayPaused) {
+        text += ' (paused)';
+    }
+    messageDiv.textContent = text;
+    if (replayPaused) {
+        const backBtn = document.createElement('button');
+        backBtn.textContent = '<';
+        backBtn.onclick = () => stepReplay(-1);
+        messageDiv.appendChild(document.createTextNode(' '));
+        messageDiv.appendChild(backBtn);
+        const fwdBtn = document.createElement('button');
+        fwdBtn.textContent = '>';
+        fwdBtn.onclick = () => stepReplay(1);
+        messageDiv.appendChild(document.createTextNode(' '));
+        messageDiv.appendChild(fwdBtn);
+    }
+}
+
+function saveGame() {
+    if (moveHistory.length === 0) {
+        return;
+    }
+    const data = JSON.stringify({history: moveHistory});
+    const blob = new Blob([data], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `othello_${gameId}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function handleLoadFile(ev) {
+    const file = ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (Array.isArray(data.history) && data.history.length > 0) {
+                moveHistory = data.history.slice(0, -1);
+                const last = data.history[data.history.length - 1];
+                if (socket) {
+                    socket.send(JSON.stringify({action: 'load', data: last}));
+                }
+            }
+        } catch (err) {
+            alert('Invalid file');
+        }
+    };
+    reader.readAsText(file);
+    ev.target.value = '';
 }
 
 function appendChat(name, message) {
@@ -302,6 +436,12 @@ function init() {
     const form = document.getElementById('chat-form');
     if (form) {
         form.addEventListener('submit', sendChat);
+    }
+    const loadBtn = document.getElementById('load-game');
+    const loadInput = document.getElementById('load-file');
+    if (loadBtn && loadInput) {
+        loadBtn.onclick = () => loadInput.click();
+        loadInput.addEventListener('change', handleLoadFile);
     }
 }
 
