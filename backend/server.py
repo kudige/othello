@@ -307,6 +307,31 @@ class ConnectionManager:
             return True
         return False
 
+    def stand_up(self, game_id: str, websocket: WebSocket, color: str) -> bool:
+        """Remove ``websocket`` from its seat and optionally remove bot opponent."""
+        players = self.active.get(game_id)
+        names = self.names.get(game_id)
+        bots = self.bots.get(game_id)
+        if not players or not names:
+            return False
+        if players.get(color) is websocket:
+            players[color] = None
+            names[color] = ""
+            self.watchers.setdefault(game_id, set()).add(websocket)
+            # Cancel any pending release task for this seat
+            task = self.release_tasks.get(game_id, {}).get(color)
+            if task:
+                task.cancel()
+                self.release_tasks[game_id][color] = None
+            # If the opponent is a bot, remove it as well
+            opponent = "white" if color == "black" else "black"
+            if bots and bots.get(opponent):
+                bots[opponent] = None
+                names[opponent] = ""
+            self._schedule_room_cleanup(game_id)
+            return True
+        return False
+
     async def bot_move(self, game_id: str) -> None:
         """Have any seated bots play their moves until it's a human turn."""
         game = self.games.get(game_id)
@@ -494,7 +519,8 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "spectators": list(manager.watchers.get(game_id, {}).values()),
                         },
                     )
-                    await manager.bot_move(game_id)
+                    # Let the player see their move before the bot responds.
+                    asyncio.create_task(manager.bot_move(game_id))
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Invalid move"}))
             elif action == "name":
@@ -529,7 +555,8 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "spectators": list(manager.watchers.get(game_id, {}).values()),
                         },
                     )
-                    await manager.bot_move(game_id)
+                    # Run bot moves asynchronously so the UI updates immediately.
+                    asyncio.create_task(manager.bot_move(game_id))
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Seat taken"}))
             elif action == "bot":
@@ -551,9 +578,24 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "spectators": list(manager.watchers.get(game_id, {}).values()),
                         },
                     )
-                    await manager.bot_move(game_id)
+                    asyncio.create_task(manager.bot_move(game_id))
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Seat taken"}))
+            elif action == "stand":
+                if color and game.current_player == 0 and manager.stand_up(game_id, websocket, color):
+                    color = None
+                    await websocket.send_text(json.dumps({"type": "seat", "color": None}))
+                    await manager.broadcast(
+                        game_id,
+                        {
+                            "type": "players",
+                            "players": manager.names[game_id],
+                            "current": game.current_player,
+                            "ratings": manager.get_game_ratings(game_id),
+                        },
+                    )
+                else:
+                    await websocket.send_text(json.dumps({"type": "error", "message": "Cannot stand"}))
             elif action == "chat":
                 # Broadcast chat messages to all players and spectators
                 text = msg.get("message", "")
@@ -579,7 +621,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "spectators": list(manager.watchers.get(game_id, {}).values()),
                         },
                     )
-                    await manager.bot_move(game_id)
+                    asyncio.create_task(manager.bot_move(game_id))
                 else:
                     await websocket.send_text(
                         json.dumps({"type": "error", "message": "Cannot restart"})

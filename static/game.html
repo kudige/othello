@@ -6,12 +6,23 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
+    <a id="back-to-lobby" href="/">Back to Lobby</a>
     <div id="game-wrapper">
 	    <h1>Othello</h1>
         <div id="board-container">
-            <div id="white-player" class="player"><span id="white-name"></span> (<span id="white-count">0</span>)</div>
-            <div id="black-player" class="player"><span id="black-name"></span> (<span id="black-count">0</span>)</div>
-            <div id="board"></div>
+            <div id="board-area">
+                <div id="board"></div>
+                <div id="player-info">
+                    <div id="white-player" class="player-row">
+                        <div class="score-circle white"><span id="white-count">0</span></div>
+                        <span id="white-name"></span> <span id="white-score"></span>
+                    </div>
+                    <div id="black-player" class="player-row">
+                        <div class="score-circle black"><span id="black-count">0</span></div>
+                        <span id="black-name"></span> <span id="black-score"></span>
+                    </div>
+                </div>
+            </div>
             <div id="message"></div>
         </div>
         <div id="chat-wrapper">

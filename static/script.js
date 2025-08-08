@@ -138,6 +138,11 @@ function renderBoard(board, current, last) {
             btn.textContent = 'Restart';
             btn.onclick = sendRestart;
             messageDiv.appendChild(btn);
+            messageDiv.appendChild(document.createTextNode(' '));
+            const standBtn = document.createElement('button');
+            standBtn.textContent = 'Stand Up';
+            standBtn.onclick = sendStand;
+            messageDiv.appendChild(standBtn);
         }
     } else {
         messageDiv.textContent = '';
@@ -149,22 +154,30 @@ function renderPlayers(players, spectators, current) {
     const whitePlayer = document.getElementById('white-player');
     const blackName = document.getElementById('black-name');
     const whiteName = document.getElementById('white-name');
+    const blackScore = document.getElementById('black-score');
+    const whiteScore = document.getElementById('white-score');
 
     // Helper to render a seat
-    function renderSeat(color, el, name) {
-        el.innerHTML = '';
+    function renderSeat(color, nameEl, scoreEl, name) {
+        nameEl.innerHTML = '';
+        scoreEl.textContent = '';
         if (name) {
-            el.textContent = name;
+            let display = name;
             if (playerColor === color) {
-                el.textContent += ' (You)';
+                display += ' (you)';
             }
+            const rating = currentRatings && currentRatings[color];
+            if (rating) {
+                scoreEl.textContent = `(${rating})`;
+            }
+            nameEl.textContent = display;
         } else if (!playerColor) {
             const btn = document.createElement('button');
             btn.textContent = 'Sit';
             btn.onclick = () => {
                 socket.send(JSON.stringify({action: 'sit', color: color, name: playerName}));
             };
-            el.appendChild(btn);
+            nameEl.appendChild(btn);
         } else if (playerColor !== color) {
             if (availableBots.length > 0) {
                 const btn = document.createElement('button');
@@ -172,15 +185,15 @@ function renderPlayers(players, spectators, current) {
                 btn.onclick = () => {
                     openBotPopup(color);
                 };
-                el.appendChild(btn);
+                nameEl.appendChild(btn);
             }
         } else {
-            el.textContent = 'Waiting...';
+            nameEl.textContent = 'Waiting...';
         }
     }
 
-    renderSeat('black', blackName, players.black);
-    renderSeat('white', whiteName, players.white);
+    //renderSeat('black', blackName, players.black);
+    //renderSeat('white', whiteName, players.white);
 
     blackPlayer.classList.toggle('you', playerColor === 'black');
     whitePlayer.classList.toggle('you', playerColor === 'white');
@@ -204,6 +217,8 @@ function renderPlayers(players, spectators, current) {
             list.appendChild(li);
         });
     }
+    renderSeat('white', whiteName, whiteScore, players.white);
+    renderSeat('black', blackName, blackScore, players.black);
 }
 
 function openBotPopup(color) {
@@ -287,6 +302,12 @@ function sendMove(x, y) {
 function sendRestart() {
     if (socket && playerColor) {
         socket.send(JSON.stringify({action: 'restart'}));
+    }
+}
+
+function sendStand() {
+    if (socket && playerColor) {
+        socket.send(JSON.stringify({action: 'stand'}));
     }
 }
 
