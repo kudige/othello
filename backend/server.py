@@ -365,6 +365,26 @@ class ConnectionManager:
         self.games[game_id] = Game()
         return True
 
+    def load_game(self, game_id: str, data: Dict) -> bool:
+        """Load a saved game state if no players are seated."""
+        if game_id not in self.games:
+            return False
+        players = self.active.get(game_id, {})
+        if players.get("black") or players.get("white"):
+            return False
+        board = data.get("board")
+        current = data.get("current")
+        last = data.get("last")
+        if not isinstance(board, list) or len(board) != 8:
+            return False
+        if any(len(row) != 8 for row in board):
+            return False
+        game = self.games[game_id]
+        game.board = board
+        game.current_player = current
+        game.last_move = tuple(last) if last is not None else None
+        return True
+
     def _remove_room(self, game_id: str) -> None:
         """Remove all traces of a room."""
         for task in self.release_tasks.get(game_id, {}).values():
@@ -563,6 +583,23 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                     )
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Cannot stand"}))
+            elif action == "load":
+                data = msg.get("data", {})
+                if color is None and manager.load_game(game_id, data):
+                    game = manager.games[game_id]
+                    await manager.broadcast(
+                        game_id,
+                        {
+                            "type": "update",
+                            "board": game.board,
+                            "last": game.last_move,
+                            "current": game.current_player,
+                            "players": manager.names[game_id],
+                            "ratings": manager.get_game_ratings(game_id),
+                        },
+                    )
+                else:
+                    await websocket.send_text(json.dumps({"type": "error", "message": "Cannot load"}))
             elif action == "chat":
                 # Broadcast chat messages to all players and spectators
                 text = msg.get("message", "")
