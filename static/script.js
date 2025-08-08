@@ -316,12 +316,13 @@ function startReplay() {
     replayPaused = false;
     const boardDiv = document.getElementById('board');
     boardDiv.onclick = toggleReplay;
-    renderBoard(moveHistory[0].board, moveHistory[0].current, moveHistory[0].last);
+    advanceReplay();
     replayTimer = setInterval(advanceReplay, 1000);
 }
 
 function advanceReplay() {
     if (replayPaused) {
+        updateReplayMessage();
         return;
     }
     replayIdx++;
@@ -331,14 +332,29 @@ function advanceReplay() {
         isReplaying = false;
         const boardDiv = document.getElementById('board');
         boardDiv.onclick = null;
+        const last = moveHistory[moveHistory.length - 1];
+        renderBoard(last.board, last.current, last.last);
         return;
     }
     const snap = moveHistory[replayIdx];
     renderBoard(snap.board, snap.current, snap.last);
+    updateReplayMessage();
 }
 
 function toggleReplay() {
     replayPaused = !replayPaused;
+    updateReplayMessage();
+}
+
+function updateReplayMessage() {
+    const messageDiv = document.getElementById('message');
+    const total = Math.max(moveHistory.length - 1, 0);
+    const move = Math.min(replayIdx, total);
+    let text = `Replaying: move ${move}/${total}`;
+    if (replayPaused) {
+        text += ' (paused)';
+    }
+    messageDiv.textContent = text;
 }
 
 function saveGame() {
