@@ -151,7 +151,7 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
 
         # Game phase adjustment
         pieces = player_count + opponent_count
-        if pieces <= 20:
+        if pieces <= 52:
             disk_w, mob_w, corner_w, edge_w, bad_w = 10, 80, 800, 40, 60
         elif pieces <= 52:
             disk_w, mob_w, corner_w, edge_w, bad_w = 30, 60, 800, 60, 40
