@@ -17,6 +17,9 @@ let lastMove = null;
 // History of board states for replay and saving.
 let moveHistory = [];
 let replayTimer = null;
+let replayIdx = 0;
+let replayPaused = false;
+let isReplaying = false;
 
 function cloneBoard(board) {
     return board.map(row => row.slice());
@@ -104,7 +107,8 @@ function renderBoard(board, current, last) {
             if (
                 cell === 0 &&
                 playerColor === turnColor &&
-                valid.has(key)
+                valid.has(key) &&
+                !isReplaying
             ) {
                 cellDiv.classList.add('valid');
                 cellDiv.onclick = () => sendMove(x, y);
@@ -307,17 +311,34 @@ function startReplay() {
     if (moveHistory.length === 0) {
         return;
     }
-    let idx = 0;
+    isReplaying = true;
+    replayIdx = 0;
+    replayPaused = false;
+    const boardDiv = document.getElementById('board');
+    boardDiv.onclick = toggleReplay;
     renderBoard(moveHistory[0].board, moveHistory[0].current, moveHistory[0].last);
-    replayTimer = setInterval(() => {
-        idx++;
-        if (idx >= moveHistory.length) {
-            clearInterval(replayTimer);
-            return;
-        }
-        const snap = moveHistory[idx];
-        renderBoard(snap.board, snap.current, snap.last);
-    }, 1000);
+    replayTimer = setInterval(advanceReplay, 1000);
+}
+
+function advanceReplay() {
+    if (replayPaused) {
+        return;
+    }
+    replayIdx++;
+    if (replayIdx >= moveHistory.length) {
+        clearInterval(replayTimer);
+        replayTimer = null;
+        isReplaying = false;
+        const boardDiv = document.getElementById('board');
+        boardDiv.onclick = null;
+        return;
+    }
+    const snap = moveHistory[replayIdx];
+    renderBoard(snap.board, snap.current, snap.last);
+}
+
+function toggleReplay() {
+    replayPaused = !replayPaused;
 }
 
 function saveGame() {
