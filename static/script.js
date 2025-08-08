@@ -346,6 +346,13 @@ function toggleReplay() {
     updateReplayMessage();
 }
 
+function stepReplay(delta) {
+    replayIdx = Math.max(0, Math.min(replayIdx + delta, moveHistory.length - 1));
+    const snap = moveHistory[replayIdx];
+    renderBoard(snap.board, snap.current, snap.last);
+    updateReplayMessage();
+}
+
 function updateReplayMessage() {
     const messageDiv = document.getElementById('message');
     const total = Math.max(moveHistory.length - 1, 0);
@@ -355,6 +362,18 @@ function updateReplayMessage() {
         text += ' (paused)';
     }
     messageDiv.textContent = text;
+    if (replayPaused) {
+        const backBtn = document.createElement('button');
+        backBtn.textContent = '<';
+        backBtn.onclick = () => stepReplay(-1);
+        messageDiv.appendChild(document.createTextNode(' '));
+        messageDiv.appendChild(backBtn);
+        const fwdBtn = document.createElement('button');
+        fwdBtn.textContent = '>';
+        fwdBtn.onclick = () => stepReplay(1);
+        messageDiv.appendChild(document.createTextNode(' '));
+        messageDiv.appendChild(fwdBtn);
+    }
 }
 
 function saveGame() {
