@@ -14,6 +14,13 @@ const gameId = window.location.pathname.split('/').pop();
 let availableBots = [];
 // Track the last move sent by the server so we can highlight it.
 let lastMove = null;
+// History of board states for replay and saving.
+let moveHistory = [];
+let replayTimer = null;
+
+function cloneBoard(board) {
+    return board.map(row => row.slice());
+}
 
 function connect() {
     if (!gameId) {
@@ -38,6 +45,7 @@ function connect() {
             currentRatings = msg.ratings;
             lastMove = msg.last;
             availableBots = msg.bots || [];
+            moveHistory = [{board: cloneBoard(msg.board), current: msg.current, last: msg.last}];
             renderBoard(currentBoard, currentTurn, lastMove);
             renderPlayers(currentPlayers, currentTurn);
             if (playerName && playerColor) {
@@ -49,6 +57,7 @@ function connect() {
             currentPlayers = msg.players;
             currentRatings = msg.ratings;
             lastMove = msg.last;
+            moveHistory.push({board: cloneBoard(msg.board), current: msg.current, last: msg.last});
             renderBoard(currentBoard, currentTurn, lastMove);
             renderPlayers(currentPlayers, currentTurn);
         } else if (msg.type === 'players') {
@@ -129,7 +138,17 @@ function renderBoard(board, current, last) {
             msg = "Game over! It's a draw.";
         }
         messageDiv.textContent = msg + ' ';
+        const replayBtn = document.createElement('button');
+        replayBtn.textContent = 'Replay';
+        replayBtn.onclick = startReplay;
+        messageDiv.appendChild(replayBtn);
+        messageDiv.appendChild(document.createTextNode(' '));
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Save Game';
+        saveBtn.onclick = saveGame;
+        messageDiv.appendChild(saveBtn);
         if (playerColor) {
+            messageDiv.appendChild(document.createTextNode(' '));
             const btn = document.createElement('button');
             btn.textContent = 'Restart';
             btn.onclick = sendRestart;
@@ -270,6 +289,7 @@ function sendMove(x, y) {
 
 function sendRestart() {
     if (socket && playerColor) {
+        moveHistory = [];
         socket.send(JSON.stringify({action: 'restart'}));
     }
 }
@@ -278,6 +298,64 @@ function sendStand() {
     if (socket && playerColor) {
         socket.send(JSON.stringify({action: 'stand'}));
     }
+}
+
+function startReplay() {
+    if (replayTimer) {
+        clearInterval(replayTimer);
+    }
+    if (moveHistory.length === 0) {
+        return;
+    }
+    let idx = 0;
+    renderBoard(moveHistory[0].board, moveHistory[0].current, moveHistory[0].last);
+    replayTimer = setInterval(() => {
+        idx++;
+        if (idx >= moveHistory.length) {
+            clearInterval(replayTimer);
+            return;
+        }
+        const snap = moveHistory[idx];
+        renderBoard(snap.board, snap.current, snap.last);
+    }, 1000);
+}
+
+function saveGame() {
+    if (moveHistory.length === 0) {
+        return;
+    }
+    const data = JSON.stringify({history: moveHistory});
+    const blob = new Blob([data], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `othello_${gameId}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function handleLoadFile(ev) {
+    const file = ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (Array.isArray(data.history) && data.history.length > 0) {
+                moveHistory = data.history.slice(0, -1);
+                const last = data.history[data.history.length - 1];
+                if (socket) {
+                    socket.send(JSON.stringify({action: 'load', data: last}));
+                }
+            }
+        } catch (err) {
+            alert('Invalid file');
+        }
+    };
+    reader.readAsText(file);
+    ev.target.value = '';
 }
 
 function appendChat(name, message) {
@@ -302,6 +380,12 @@ function init() {
     const form = document.getElementById('chat-form');
     if (form) {
         form.addEventListener('submit', sendChat);
+    }
+    const loadBtn = document.getElementById('load-game');
+    const loadInput = document.getElementById('load-file');
+    if (loadBtn && loadInput) {
+        loadBtn.onclick = () => loadInput.click();
+        loadInput.addEventListener('change', handleLoadFile);
     }
 }
 
