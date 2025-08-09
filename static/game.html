@@ -7,21 +7,24 @@
 </head>
 <body>
     <button id="back-to-lobby">Back to Lobby</button>
-    <button id="load-game">Load Game</button>
-    <input id="load-file" type="file" style="display:none" />
     <div id="game-wrapper">
             <h1>Othello</h1>
         <div id="board-container">
             <div id="board-area">
                 <div id="board"></div>
-                <div id="player-info">
-                    <div id="white-player" class="player-row">
-                        <div class="score-circle white"><span id="white-count">0</span></div>
+                <div id="side-panel">
+                    <button id="load-game">Load Game</button>
+                    <button id="save-game" style="display:none">Save Game</button>
+                    <input id="load-file" type="file" style="display:none" />
+                    <div id="player-info">
+                        <div id="white-player" class="player-row">
+                            <div class="score-circle white"><span id="white-count">0</span></div>
                         <span id="white-name"></span> <span id="white-score"></span>
-                    </div>
-                    <div id="black-player" class="player-row">
-                        <div class="score-circle black"><span id="black-count">0</span></div>
+                        </div>
+                        <div id="black-player" class="player-row">
+                            <div class="score-circle black"><span id="black-count">0</span></div>
                         <span id="black-name"></span> <span id="black-score"></span>
+                        </div>
                     </div>
                 </div>
             </div>
