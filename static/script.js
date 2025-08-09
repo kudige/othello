@@ -10,6 +10,7 @@ let currentBoard = null;
 let currentTurn = 0;
 let currentPlayers = null;
 let currentRatings = null;
+let currentSpectators = [];
 const gameId = window.location.pathname.split('/').pop();
 let availableBots = [];
 // Track the last move sent by the server so we can highlight it.
@@ -46,12 +47,13 @@ function connect() {
             currentTurn = msg.current;
             currentPlayers = msg.players;
             currentRatings = msg.ratings;
+            currentSpectators = msg.spectators || [];
             lastMove = msg.last;
             availableBots = msg.bots || [];
             moveHistory = [{board: cloneBoard(msg.board), current: msg.current, last: msg.last}];
             renderBoard(currentBoard, currentTurn, lastMove);
-            renderPlayers(currentPlayers, currentTurn);
-            if (playerName && playerColor) {
+            renderPlayers(currentPlayers, currentSpectators, currentTurn);
+            if (playerName) {
                 socket.send(JSON.stringify({action: 'name', name: playerName}));
             }
         } else if (msg.type === 'update') {
@@ -59,15 +61,17 @@ function connect() {
             currentTurn = msg.current;
             currentPlayers = msg.players;
             currentRatings = msg.ratings;
+            currentSpectators = msg.spectators || [];
             lastMove = msg.last;
             moveHistory.push({board: cloneBoard(msg.board), current: msg.current, last: msg.last});
             renderBoard(currentBoard, currentTurn, lastMove);
-            renderPlayers(currentPlayers, currentTurn);
+            renderPlayers(currentPlayers, currentSpectators, currentTurn);
         } else if (msg.type === 'players') {
             currentPlayers = msg.players;
             currentTurn = msg.current;
             currentRatings = msg.ratings;
-            renderPlayers(currentPlayers, currentTurn);
+            currentSpectators = msg.spectators || [];
+            renderPlayers(currentPlayers, currentSpectators, currentTurn);
         } else if (msg.type === 'chat') {
             appendChat(msg.name, msg.message);
         } else if (msg.type === 'seat') {
@@ -81,7 +85,7 @@ function connect() {
                 renderBoard(currentBoard, currentTurn, lastMove);
             }
             if (currentPlayers) {
-                renderPlayers(currentPlayers, currentTurn);
+                renderPlayers(currentPlayers, currentSpectators, currentTurn);
             }
         } else if (msg.type === 'error') {
             alert(msg.message);
@@ -168,7 +172,9 @@ function renderBoard(board, current, last) {
     }
 }
 
-function renderPlayers(players, current) {
+function renderPlayers(players, spectators, current) {
+    const blackPlayer = document.getElementById('black-player');
+    const whitePlayer = document.getElementById('white-player');
     const blackName = document.getElementById('black-name');
     const whiteName = document.getElementById('white-name');
     const blackScore = document.getElementById('black-score');
@@ -209,6 +215,31 @@ function renderPlayers(players, current) {
         }
     }
 
+    //renderSeat('black', blackName, players.black);
+    //renderSeat('white', whiteName, players.white);
+
+    blackPlayer.classList.toggle('you', playerColor === 'black');
+    whitePlayer.classList.toggle('you', playerColor === 'white');
+
+    const list = document.getElementById('player-names');
+    if (list) {
+        list.innerHTML = '';
+        const entries = [];
+        if (players.black) entries.push({role: 'black', name: players.black});
+        if (players.white) entries.push({role: 'white', name: players.white});
+        spectators.forEach((n) => {
+            if (n) entries.push({role: 'spectator', name: n});
+        });
+        entries.forEach((e) => {
+            const li = document.createElement('li');
+            li.textContent = e.name;
+            li.classList.add(e.role);
+            if (e.name === playerName) {
+                li.textContent += ' (You)';
+            }
+            list.appendChild(li);
+        });
+    }
     renderSeat('white', whiteName, whiteScore, players.white);
     renderSeat('black', blackName, blackScore, players.black);
 }
