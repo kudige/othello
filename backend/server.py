@@ -366,11 +366,8 @@ class ConnectionManager:
         return True
 
     def load_game(self, game_id: str, data: Dict) -> bool:
-        """Load a saved game state if no players are seated."""
+        """Load a saved game state."""
         if game_id not in self.games:
-            return False
-        players = self.active.get(game_id, {})
-        if players.get("black") or players.get("white"):
             return False
         board = data.get("board")
         current = data.get("current")
@@ -585,7 +582,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                     await websocket.send_text(json.dumps({"type": "error", "message": "Cannot stand"}))
             elif action == "load":
                 data = msg.get("data", {})
-                if color is None and manager.load_game(game_id, data):
+                if manager.load_game(game_id, data):
                     game = manager.games[game_id]
                     await manager.broadcast(
                         game_id,
