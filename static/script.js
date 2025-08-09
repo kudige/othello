@@ -13,6 +13,12 @@ let currentRatings = null;
 let currentSpectators = [];
 const gameId = window.location.pathname.split('/').pop();
 let availableBots = [];
+const backToLobbyBtn = document.getElementById('back-to-lobby');
+if (backToLobbyBtn) {
+    backToLobbyBtn.addEventListener('click', () => {
+        window.location.href = '/';
+    });
+}
 // Track the last move sent by the server so we can highlight it.
 let lastMove = null;
 // History of board states for replay and saving.
