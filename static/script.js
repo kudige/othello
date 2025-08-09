@@ -28,6 +28,20 @@ let replayIdx = 0;
 let replayPaused = false;
 let isReplaying = false;
 
+function updateLoadSaveButtons() {
+    const loadBtn = document.getElementById('load-game');
+    const saveBtn = document.getElementById('save-game');
+    if (!loadBtn || !saveBtn) return;
+    const gameStarted = moveHistory.length > 1 || lastMove !== null;
+    if (gameStarted) {
+        loadBtn.style.display = 'none';
+        saveBtn.style.display = 'inline-block';
+    } else {
+        loadBtn.style.display = 'inline-block';
+        saveBtn.style.display = 'none';
+    }
+}
+
 function cloneBoard(board) {
     return board.map(row => row.slice());
 }
@@ -59,6 +73,7 @@ function connect() {
             moveHistory = [{board: cloneBoard(msg.board), current: msg.current, last: msg.last}];
             renderBoard(currentBoard, currentTurn, lastMove);
             renderPlayers(currentPlayers, currentSpectators, currentTurn);
+            updateLoadSaveButtons();
             if (playerName) {
                 socket.send(JSON.stringify({action: 'name', name: playerName}));
             }
@@ -72,12 +87,14 @@ function connect() {
             moveHistory.push({board: cloneBoard(msg.board), current: msg.current, last: msg.last});
             renderBoard(currentBoard, currentTurn, lastMove);
             renderPlayers(currentPlayers, currentSpectators, currentTurn);
+            updateLoadSaveButtons();
         } else if (msg.type === 'players') {
             currentPlayers = msg.players;
             currentTurn = msg.current;
             currentRatings = msg.ratings;
             currentSpectators = msg.spectators || [];
             renderPlayers(currentPlayers, currentSpectators, currentTurn);
+            updateLoadSaveButtons();
         } else if (msg.type === 'chat') {
             appendChat(msg.name, msg.message);
         } else if (msg.type === 'seat') {
@@ -93,6 +110,7 @@ function connect() {
             if (currentPlayers) {
                 renderPlayers(currentPlayers, currentSpectators, currentTurn);
             }
+            updateLoadSaveButtons();
         } else if (msg.type === 'error') {
             alert(msg.message);
         }
@@ -156,11 +174,6 @@ function renderBoard(board, current, last) {
         replayBtn.textContent = 'Replay';
         replayBtn.onclick = startReplay;
         messageDiv.appendChild(replayBtn);
-        messageDiv.appendChild(document.createTextNode(' '));
-        const saveBtn = document.createElement('button');
-        saveBtn.textContent = 'Save Game';
-        saveBtn.onclick = saveGame;
-        messageDiv.appendChild(saveBtn);
         if (playerColor) {
             messageDiv.appendChild(document.createTextNode(' '));
             const btn = document.createElement('button');
@@ -442,6 +455,7 @@ function handleLoadFile(ev) {
                 if (socket) {
                     socket.send(JSON.stringify({action: 'load', data: last}));
                 }
+                updateLoadSaveButtons();
             }
         } catch (err) {
             alert('Invalid file');
@@ -480,6 +494,11 @@ function init() {
         loadBtn.onclick = () => loadInput.click();
         loadInput.addEventListener('change', handleLoadFile);
     }
+    const saveBtn = document.getElementById('save-game');
+    if (saveBtn) {
+        saveBtn.onclick = saveGame;
+    }
+    updateLoadSaveButtons();
 }
 
 window.onload = init;
