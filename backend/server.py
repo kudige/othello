@@ -315,9 +315,10 @@ class ConnectionManager:
         if not players or not names:
             return False
         if players.get(color) is websocket:
+            player_name = names.get(color, "")
             players[color] = None
             names[color] = ""
-            self.watchers.setdefault(game_id, set()).add(websocket)
+            self.watchers.setdefault(game_id, {})[websocket] = player_name
             # Cancel any pending release task for this seat
             task = self.release_tasks.get(game_id, {}).get(color)
             if task:
