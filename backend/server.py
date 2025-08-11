@@ -600,7 +600,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Seat taken"}))
             elif action == "stand":
-                if color and game.current_player == 0 and manager.stand_up(game_id, websocket, color):
+                if color and manager.stand_up(game_id, websocket, color):
                     color = None
                     await websocket.send_text(json.dumps({"type": "seat", "color": None}))
                     await manager.broadcast(
@@ -610,6 +610,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                             "players": manager.names[game_id],
                             "current": game.current_player,
                             "ratings": manager.get_game_ratings(game_id),
+                            "spectators": list(manager.watchers.get(game_id, {}).values()),
                         },
                     )
                 else:

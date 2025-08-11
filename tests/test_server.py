@@ -372,7 +372,7 @@ def test_stand_up_removes_player_and_bot(monkeypatch):
         manager = ConnectionManager()
         gid = manager.create_game()
         game = manager.games[gid]
-        game.current_player = 0
+        game.current_player = 1
 
         ws = DummyWebSocket()
         await manager.connect(gid, ws, name="alice")
@@ -385,5 +385,54 @@ def test_stand_up_removes_player_and_bot(monkeypatch):
         assert ws in manager.watchers[gid]
         assert manager.bots[gid]["white"] is None
         assert manager.names[gid]["white"] == ""
+
+    asyncio.run(run_test())
+
+
+def test_player_can_stand_during_game(monkeypatch):
+    async def run_test():
+        monkeypatch.setattr(
+            ConnectionManager, "_schedule_room_cleanup", lambda self, gid: None
+        )
+        manager = ConnectionManager()
+        gid = manager.create_game()
+        game = manager.games[gid]
+        game.current_player = 1
+
+        monkeypatch.setattr(server, "manager", manager)
+
+        broadcasts = []
+
+        async def fake_broadcast(game_id, message):
+            broadcasts.append(message)
+
+        monkeypatch.setattr(manager, "broadcast", fake_broadcast)
+
+        class StandWS:
+            def __init__(self):
+                self.query_params = {}
+                self._messages = [
+                    json.dumps({"action": "sit", "color": "black", "name": "alice"}),
+                    json.dumps({"action": "stand"}),
+                ]
+                self.sent = []
+
+            async def accept(self):
+                pass
+
+            async def send_text(self, text):
+                self.sent.append(json.loads(text))
+
+            async def receive_text(self):
+                if self._messages:
+                    return self._messages.pop(0)
+                raise WebSocketDisconnect()
+
+        ws = StandWS()
+        await server.websocket_endpoint(ws, gid)
+
+        assert manager.active[gid]["black"] is None
+        assert any(m.get("type") == "players" and "alice" in m.get("spectators", []) for m in broadcasts)
+        assert any(m.get("type") == "seat" and m.get("color") is None for m in ws.sent)
 
     asyncio.run(run_test())
