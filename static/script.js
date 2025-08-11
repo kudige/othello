@@ -180,11 +180,6 @@ function renderBoard(board, current, last) {
             btn.textContent = 'Restart';
             btn.onclick = sendRestart;
             messageDiv.appendChild(btn);
-            messageDiv.appendChild(document.createTextNode(' '));
-            const standBtn = document.createElement('button');
-            standBtn.textContent = 'Stand Up';
-            standBtn.onclick = sendStand;
-            messageDiv.appendChild(standBtn);
         }
     } else {
         messageDiv.textContent = '';
@@ -205,7 +200,8 @@ function renderPlayers(players, spectators, current) {
         scoreEl.textContent = '';
         if (name) {
             let display = name;
-            if (playerColor === color) {
+            const isYou = playerColor === color;
+            if (isYou) {
                 display += ' (you)';
             }
             const rating = currentRatings && currentRatings[color];
@@ -213,6 +209,14 @@ function renderPlayers(players, spectators, current) {
                 scoreEl.textContent = `(${rating})`;
             }
             nameEl.textContent = display;
+            if (isYou) {
+                const standBtn = document.createElement('button');
+                standBtn.textContent = 'Stand Up';
+                standBtn.onclick = sendStand;
+                standBtn.className = 'stand-button';
+                nameEl.appendChild(document.createTextNode(' '));
+                nameEl.appendChild(standBtn);
+            }
         } else if (!playerColor) {
             const btn = document.createElement('button');
             btn.textContent = 'Sit';
