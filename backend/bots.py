@@ -3,8 +3,34 @@ from __future__ import annotations
 
 from typing import Callable, Optional, Tuple
 from functools import partial
+from pathlib import Path
+import pickle
 
 from .game import Game
+
+
+# Persistent evaluation cache -------------------------------------------------
+
+_CACHE_PATH = Path(__file__).with_name("sasha_cache.pkl")
+try:
+    with _CACHE_PATH.open("rb") as _f:
+        EVAL_CACHE: dict[tuple[int, int, int], int] = pickle.load(_f)
+except Exception:
+    EVAL_CACHE = {}
+
+
+def bitboards(board: list[list[int]]) -> tuple[int, int]:
+    """Return bitboard representation (white_bits, black_bits)."""
+    white = black = 0
+    for x in range(8):
+        for y in range(8):
+            bit = 1 << (x * 8 + y)
+            cell = board[x][y]
+            if cell == -1:
+                white |= bit
+            elif cell == 1:
+                black |= bit
+    return white, black
 
 BotStrategy = Callable[[Game, int], Optional[Tuple[int, int]]]
 
@@ -119,6 +145,11 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
     def evaluate(g: Game) -> int:
         """Heuristic evaluation of ``g`` from ``player``'s perspective."""
 
+        w_bits, b_bits = bitboards(g.board)
+        cache_key = (w_bits, b_bits, player)
+        if cache_key in EVAL_CACHE:
+            return EVAL_CACHE[cache_key]
+
         player_count = opponent_count = 0
         player_corners = opponent_corners = 0
         player_edges = opponent_edges = 0
@@ -164,6 +195,13 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
         score += corner_w * (player_corners - opponent_corners)
         score += edge_w * (player_edges - opponent_edges)
         score -= bad_w * (player_bad - opponent_bad)
+
+        EVAL_CACHE[cache_key] = score
+        try:
+            with _CACHE_PATH.open("wb") as _f:
+                pickle.dump(EVAL_CACHE, _f)
+        except Exception:
+            pass
         return score
 
     def order_moves(g: Game, moves: list[Tuple[int, int]], turn: int) -> list[Tuple[int, int]]:
@@ -179,10 +217,11 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
 
         return sorted(moves, key=key)
 
-    trans_table: dict[tuple, int] = {}
+    trans_table: dict[tuple[int, int, int, int], int] = {}
 
     def alphabeta(g: Game, depth: int, alpha: int, beta: int, turn: int) -> int:
-        key = (tuple(tuple(r) for r in g.board), turn, depth)
+        w_bits, b_bits = bitboards(g.board)
+        key = (w_bits, b_bits, turn, depth)
         if key in trans_table:
             return trans_table[key]
 
