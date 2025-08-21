@@ -35,10 +35,21 @@ def main() -> None:
     parser.add_argument(
         "--verbose", action="store_true", help="Print Sasha's thinking process"
     )
+    parser.add_argument(
+        "--max-depth",
+        type=int,
+        default=3,
+        help="Maximum search depth for Sasha (default: 3)",
+    )
     args = parser.parse_args()
 
     game = load_game(args.file)
-    move = sasha(game, game.current_player, verbose=args.verbose)
+    move = sasha(
+        game,
+        game.current_player,
+        max_depth=args.max_depth,
+        verbose=args.verbose,
+    )
     if move:
         print(f"Next move: {move[0]} {move[1]}")
     else:
