@@ -117,7 +117,9 @@ def minnie(game: Game, player: int, depth: int = 3) -> Optional[Tuple[int, int]]
     return best_move
 
 
-def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, int]]:
+def sasha(
+    game: Game, player: int, max_depth: int = 6, verbose: bool = False
+) -> Optional[Tuple[int, int]]:
     """Sasha: a stronger bot using minimax with alpha-beta pruning.
 
     The strategy includes a heuristic evaluation function, move ordering,
@@ -219,39 +221,72 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
 
     trans_table: dict[tuple[int, int, int, int], int] = {}
 
-    def alphabeta(g: Game, depth: int, alpha: int, beta: int, turn: int) -> int:
+    def alphabeta(
+        g: Game, depth: int, alpha: int, beta: int, turn: int, indent: int = 0
+    ) -> int:
         w_bits, b_bits = bitboards(g.board)
         key = (w_bits, b_bits, turn, depth)
         if key in trans_table:
+            if verbose:
+                print(" " * indent + "cache hit")
             return trans_table[key]
 
         moves = g.valid_moves(turn)
+        if verbose:
+            print(
+                " " * indent
+                + f"depth {depth}, turn {turn}, alpha {alpha}, beta {beta}, moves {moves}"
+            )
+
         if depth == 0 or (not moves and not g.valid_moves(-turn)):
             val = evaluate(g)
             trans_table[key] = val
+            if verbose:
+                print(" " * indent + f"evaluate -> {val}")
             return val
         if not moves:
-            val = alphabeta(g, depth - 1, alpha, beta, -turn)
+            val = alphabeta(g, depth - 1, alpha, beta, -turn, indent + 2)
             trans_table[key] = val
             return val
 
         if turn == player:
             value = -float("inf")
             for mx, my in order_moves(g, moves, turn):
+                if verbose:
+                    print(" " * indent + f"try {(mx, my)}")
                 sim = g.copy()
                 sim.make_move(mx, my, turn)
-                value = max(value, alphabeta(sim, depth - 1, alpha, beta, -turn))
+                value = max(
+                    value, alphabeta(sim, depth - 1, alpha, beta, -turn, indent + 2)
+                )
                 alpha = max(alpha, value)
+                if verbose:
+                    print(
+                        " " * indent
+                        + f"move {(mx, my)} -> {value} (alpha={alpha})"
+                    )
                 if alpha >= beta:
+                    if verbose:
+                        print(" " * indent + "prune")
                     break
         else:
             value = float("inf")
             for mx, my in order_moves(g, moves, turn):
+                if verbose:
+                    print(" " * indent + f"try {(mx, my)}")
                 sim = g.copy()
                 sim.make_move(mx, my, turn)
-                value = min(value, alphabeta(sim, depth - 1, alpha, beta, -turn))
+                value = min(
+                    value, alphabeta(sim, depth - 1, alpha, beta, -turn, indent + 2)
+                )
                 beta = min(beta, value)
+                if verbose:
+                    print(
+                        " " * indent + f"move {(mx, my)} -> {value} (beta={beta})"
+                    )
                 if alpha >= beta:
+                    if verbose:
+                        print(" " * indent + "prune")
                     break
         trans_table[key] = value
         return value
@@ -266,14 +301,24 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
 
     best_move = moves[0]
     for depth in range(1, max_depth + 1):  # iterative deepening
+        if verbose:
+            print(f"== depth {depth} ==")
         best_val = -float("inf")
         for x, y in order_moves(game, moves, player):
+            if verbose:
+                print(f"root try {(x, y)}")
             sim = game.copy()
             sim.make_move(x, y, player)
-            val = alphabeta(sim, depth - 1, -float("inf"), float("inf"), -player)
+            val = alphabeta(
+                sim, depth - 1, -float("inf"), float("inf"), -player, indent=2
+            )
+            if verbose:
+                print(f"root move {(x, y)} -> {val}")
             if val > best_val:
                 best_val = val
                 best_move = (x, y)
+        if verbose:
+            print(f"best at depth {depth}: {best_move} score {best_val}")
     return best_move
 
 
