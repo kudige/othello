@@ -3,8 +3,34 @@ from __future__ import annotations
 
 from typing import Callable, Optional, Tuple
 from functools import partial
+from pathlib import Path
+import pickle
 
 from .game import Game
+
+
+# Persistent evaluation cache -------------------------------------------------
+
+_CACHE_PATH = Path(__file__).with_name("sasha_cache.pkl")
+try:
+    with _CACHE_PATH.open("rb") as _f:
+        EVAL_CACHE: dict[tuple[int, int, int], int] = pickle.load(_f)
+except Exception:
+    EVAL_CACHE = {}
+
+
+def bitboards(board: list[list[int]]) -> tuple[int, int]:
+    """Return bitboard representation (white_bits, black_bits)."""
+    white = black = 0
+    for x in range(8):
+        for y in range(8):
+            bit = 1 << (x * 8 + y)
+            cell = board[x][y]
+            if cell == -1:
+                white |= bit
+            elif cell == 1:
+                black |= bit
+    return white, black
 
 BotStrategy = Callable[[Game, int], Optional[Tuple[int, int]]]
 
@@ -91,7 +117,9 @@ def minnie(game: Game, player: int, depth: int = 3) -> Optional[Tuple[int, int]]
     return best_move
 
 
-def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, int]]:
+def sasha(
+    game: Game, player: int, max_depth: int = 6, verbose: bool = False
+) -> Optional[Tuple[int, int]]:
     """Sasha: a stronger bot using minimax with alpha-beta pruning.
 
     The strategy includes a heuristic evaluation function, move ordering,
@@ -118,6 +146,11 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
 
     def evaluate(g: Game) -> int:
         """Heuristic evaluation of ``g`` from ``player``'s perspective."""
+
+        w_bits, b_bits = bitboards(g.board)
+        cache_key = (w_bits, b_bits, player)
+        if cache_key in EVAL_CACHE:
+            return EVAL_CACHE[cache_key]
 
         player_count = opponent_count = 0
         player_corners = opponent_corners = 0
@@ -164,6 +197,13 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
         score += corner_w * (player_corners - opponent_corners)
         score += edge_w * (player_edges - opponent_edges)
         score -= bad_w * (player_bad - opponent_bad)
+
+        EVAL_CACHE[cache_key] = score
+        try:
+            with _CACHE_PATH.open("wb") as _f:
+                pickle.dump(EVAL_CACHE, _f)
+        except Exception:
+            pass
         return score
 
     def order_moves(g: Game, moves: list[Tuple[int, int]], turn: int) -> list[Tuple[int, int]]:
@@ -179,40 +219,74 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
 
         return sorted(moves, key=key)
 
-    trans_table: dict[tuple, int] = {}
+    trans_table: dict[tuple[int, int, int, int], int] = {}
 
-    def alphabeta(g: Game, depth: int, alpha: int, beta: int, turn: int) -> int:
-        key = (tuple(tuple(r) for r in g.board), turn, depth)
+    def alphabeta(
+        g: Game, depth: int, alpha: int, beta: int, turn: int, indent: int = 0
+    ) -> int:
+        w_bits, b_bits = bitboards(g.board)
+        key = (w_bits, b_bits, turn, depth)
         if key in trans_table:
+            if verbose:
+                print(" " * indent + "cache hit")
             return trans_table[key]
 
         moves = g.valid_moves(turn)
+        if verbose:
+            print(
+                " " * indent
+                + f"depth {depth}, turn {turn}, alpha {alpha}, beta {beta}, moves {moves}"
+            )
+
         if depth == 0 or (not moves and not g.valid_moves(-turn)):
             val = evaluate(g)
             trans_table[key] = val
+            if verbose:
+                print(" " * indent + f"evaluate -> {val}")
             return val
         if not moves:
-            val = alphabeta(g, depth - 1, alpha, beta, -turn)
+            val = alphabeta(g, depth - 1, alpha, beta, -turn, indent + 2)
             trans_table[key] = val
             return val
 
         if turn == player:
             value = -float("inf")
             for mx, my in order_moves(g, moves, turn):
+                if verbose:
+                    print(" " * indent + f"try {(mx, my)}")
                 sim = g.copy()
                 sim.make_move(mx, my, turn)
-                value = max(value, alphabeta(sim, depth - 1, alpha, beta, -turn))
+                value = max(
+                    value, alphabeta(sim, depth - 1, alpha, beta, -turn, indent + 2)
+                )
                 alpha = max(alpha, value)
+                if verbose:
+                    print(
+                        " " * indent
+                        + f"move {(mx, my)} -> {value} (alpha={alpha})"
+                    )
                 if alpha >= beta:
+                    if verbose:
+                        print(" " * indent + "prune")
                     break
         else:
             value = float("inf")
             for mx, my in order_moves(g, moves, turn):
+                if verbose:
+                    print(" " * indent + f"try {(mx, my)}")
                 sim = g.copy()
                 sim.make_move(mx, my, turn)
-                value = min(value, alphabeta(sim, depth - 1, alpha, beta, -turn))
+                value = min(
+                    value, alphabeta(sim, depth - 1, alpha, beta, -turn, indent + 2)
+                )
                 beta = min(beta, value)
+                if verbose:
+                    print(
+                        " " * indent + f"move {(mx, my)} -> {value} (beta={beta})"
+                    )
                 if alpha >= beta:
+                    if verbose:
+                        print(" " * indent + "prune")
                     break
         trans_table[key] = value
         return value
@@ -227,14 +301,24 @@ def sasha(game: Game, player: int, max_depth: int = 6) -> Optional[Tuple[int, in
 
     best_move = moves[0]
     for depth in range(1, max_depth + 1):  # iterative deepening
+        if verbose:
+            print(f"== depth {depth} ==")
         best_val = -float("inf")
         for x, y in order_moves(game, moves, player):
+            if verbose:
+                print(f"root try {(x, y)}")
             sim = game.copy()
             sim.make_move(x, y, player)
-            val = alphabeta(sim, depth - 1, -float("inf"), float("inf"), -player)
+            val = alphabeta(
+                sim, depth - 1, -float("inf"), float("inf"), -player, indent=2
+            )
+            if verbose:
+                print(f"root move {(x, y)} -> {val}")
             if val > best_val:
                 best_val = val
                 best_move = (x, y)
+        if verbose:
+            print(f"best at depth {depth}: {best_move} score {best_val}")
     return best_move
 
 
